@@ -1,0 +1,16 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.local
+.DS_Store
+
+# 后端运行数据（勿提交）
+Index SQLite/
+Galgame Makerope/
+Galgame Output/
+tmp/
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
