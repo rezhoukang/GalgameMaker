@@ -95,6 +95,15 @@ func (s *TreeService) GetCanvasView(canvasID uint) (*CanvasView, error) {
 
 // CreateFolder 新建文件夹。
 func (s *TreeService) CreateFolder(parentID *uint, name string) (*models.Folder, error) {
+	var item *models.Folder
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var err error
+		item, err = NewTreeService(tx, s.settings).createFolder(parentID, name)
+		return err
+	})
+	return item, err
+}
+func (s *TreeService) createFolder(parentID *uint, name string) (*models.Folder, error) {
 	if err := s.settings.EnsureStorageConfigured(); err != nil {
 		return nil, err
 	}
@@ -130,6 +139,15 @@ func (s *TreeService) CreateFolder(parentID *uint, name string) (*models.Folder,
 
 // CreateCanvas 新建画布（树里的文件）。画布是一个目录，用于存放 HTML 文件。
 func (s *TreeService) CreateCanvas(folderID uint, name string) (*models.Canvas, error) {
+	var item *models.Canvas
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var err error
+		item, err = NewTreeService(tx, s.settings).createCanvas(folderID, name)
+		return err
+	})
+	return item, err
+}
+func (s *TreeService) createCanvas(folderID uint, name string) (*models.Canvas, error) {
 	if err := s.settings.EnsureStorageConfigured(); err != nil {
 		return nil, err
 	}
@@ -147,9 +165,17 @@ func (s *TreeService) CreateCanvas(folderID uint, name string) (*models.Canvas, 
 	baseName := name
 	for {
 		var c int64
-		s.db.Model(&models.Canvas{}).Where("folder_id = ? AND name = ?", folderID, name).Count(&c)
+		if err := s.db.Unscoped().Model(&models.Canvas{}).Where("folder_id = ? AND name = ?", folderID, name).Count(&c).Error; err != nil {
+			return nil, err
+		}
 		if c == 0 {
-			break
+			_, err := os.Stat(filepath.Join(folder.Path, name+"PIC"))
+			if os.IsNotExist(err) {
+				break
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 		count++
 		name = fmt.Sprintf("%s(%d)", baseName, count)
@@ -172,6 +198,11 @@ func (s *TreeService) CreateCanvas(folderID uint, name string) (*models.Canvas, 
 
 // RenameItem 重命名（folder / canvas）。
 func (s *TreeService) RenameItem(kind string, id uint, newName string) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		return NewTreeService(tx, s.settings).renameItem(kind, id, newName)
+	})
+}
+func (s *TreeService) renameItem(kind string, id uint, newName string) error {
 	newName = sanitizeFileName(strings.TrimSpace(newName))
 	if newName == "" || newName == "." || newName == ".." {
 		return errors.New("名称无效")
@@ -184,6 +215,9 @@ func (s *TreeService) RenameItem(kind string, id uint, newName string) error {
 			return errors.New("文件夹不存在")
 		}
 		newPath := filepath.Join(filepath.Dir(f.Path), newName)
+		if err := checkRenamePath(f.Path, newPath); err != nil {
+			return err
+		}
 		if err := os.Rename(f.Path, newPath); err != nil {
 			return fmt.Errorf("重命名文件夹失败: %w", err)
 		}
@@ -203,6 +237,9 @@ func (s *TreeService) RenameItem(kind string, id uint, newName string) error {
 		}
 		// 目录名保持 PIC 后缀
 		newPath := filepath.Join(filepath.Dir(c.Path), newName+"PIC")
+		if err := checkRenamePath(c.Path, newPath); err != nil {
+			return err
+		}
 		if err := os.Rename(c.Path, newPath); err != nil {
 			return fmt.Errorf("重命名画布失败: %w", err)
 		}
@@ -217,7 +254,7 @@ func (s *TreeService) RenameItem(kind string, id uint, newName string) error {
 // shiftCanvasPaths 文件夹重命名后，把其下所有画布路径前缀整体替换。
 func (s *TreeService) shiftCanvasPaths(tx *gorm.DB, oldPrefix, newPrefix string) error {
 	var folders []models.Folder
-	if err := tx.Find(&folders).Error; err != nil {
+	if err := tx.Unscoped().Find(&folders).Error; err != nil {
 		return err
 	}
 	for _, f := range folders {
@@ -225,12 +262,12 @@ func (s *TreeService) shiftCanvasPaths(tx *gorm.DB, oldPrefix, newPrefix string)
 		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			continue
 		}
-		if err := tx.Model(&models.Folder{}).Where("id = ?", f.ID).Update("path", filepath.Join(newPrefix, rel)).Error; err != nil {
+		if err := tx.Unscoped().Model(&models.Folder{}).Where("id = ?", f.ID).Update("path", filepath.Join(newPrefix, rel)).Error; err != nil {
 			return err
 		}
 	}
 	var canvases []models.Canvas
-	if err := tx.Find(&canvases).Error; err != nil {
+	if err := tx.Unscoped().Find(&canvases).Error; err != nil {
 		return err
 	}
 	for _, c := range canvases {
@@ -238,7 +275,7 @@ func (s *TreeService) shiftCanvasPaths(tx *gorm.DB, oldPrefix, newPrefix string)
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			continue
 		}
-		if err := tx.Model(&models.Canvas{}).Where("id = ?", c.ID).Update("path", filepath.Join(newPrefix, rel)).Error; err != nil {
+		if err := tx.Unscoped().Model(&models.Canvas{}).Where("id = ?", c.ID).Update("path", filepath.Join(newPrefix, rel)).Error; err != nil {
 			return err
 		}
 	}
@@ -247,49 +284,38 @@ func (s *TreeService) shiftCanvasPaths(tx *gorm.DB, oldPrefix, newPrefix string)
 
 // ---------------------------------------------------------------- 删除
 
-// DeleteItem 删除（folder 递归 / canvas）。
+// DeleteItem hides folders/projects while retaining their graph and media.
 func (s *TreeService) DeleteItem(kind string, id uint) error {
-	switch kind {
-	case "folder":
-		var f models.Folder
-		if err := s.db.First(&f, id).Error; err != nil {
-			return errors.New("文件夹不存在")
-		}
-		if err := os.RemoveAll(f.Path); err != nil {
-			return fmt.Errorf("删除文件夹失败: %w", err)
-		}
-		return s.db.Transaction(func(tx *gorm.DB) error {
-			allFolders := []models.Folder{f}
-			if err := s.collectChildFolders(tx, &allFolders, id); err != nil {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		deletedAt := tx.NowFunc()
+		switch kind {
+		case "folder":
+			var folder models.Folder
+			if err := tx.First(&folder, id).Error; err != nil {
+				return errors.New("文件夹不存在或已删除")
+			}
+			folders := []models.Folder{folder}
+			if err := s.collectChildFolders(tx, &folders, id); err != nil {
 				return err
 			}
-			ids := make([]uint, 0, len(allFolders))
-			for _, ff := range allFolders {
-				ids = append(ids, ff.ID)
+			ids := make([]uint, 0, len(folders))
+			for _, f := range folders {
+				ids = append(ids, f.ID)
 			}
-			for _, fid := range ids {
-				if err := s.deleteFolderCanvases(tx, fid); err != nil {
-					return err
-				}
+			if err := tx.Model(&models.Canvas{}).Where("folder_id IN ?", ids).Update("delete_at", deletedAt).Error; err != nil {
+				return err
 			}
-			return tx.Where("id IN ?", ids).Delete(&models.Folder{}).Error
-		})
-
-	case "canvas":
-		var c models.Canvas
-		if err := s.db.First(&c, id).Error; err != nil {
-			return errors.New("画布不存在")
+			return tx.Model(&models.Folder{}).Where("id IN ?", ids).Update("delete_at", deletedAt).Error
+		case "canvas":
+			var canvas models.Canvas
+			if err := tx.First(&canvas, id).Error; err != nil {
+				return errors.New("工程不存在或已删除")
+			}
+			return tx.Model(&canvas).Update("delete_at", deletedAt).Error
+		default:
+			return errors.New("不支持的删除类型")
 		}
-		if err := os.RemoveAll(c.Path); err != nil {
-			return fmt.Errorf("删除画布失败: %w", err)
-		}
-		return s.db.Transaction(func(tx *gorm.DB) error {
-			return s.deleteCanvasData(tx, id)
-		})
-
-	default:
-		return errors.New("不支持的删除类型")
-	}
+	})
 }
 
 // collectChildFolders 收集某文件夹的所有子孙文件夹。
@@ -305,39 +331,6 @@ func (s *TreeService) collectChildFolders(tx *gorm.DB, acc *[]models.Folder, par
 		}
 	}
 	return nil
-}
-
-// deleteFolderCanvases 删除某文件夹下的所有画布及其数据。
-func (s *TreeService) deleteFolderCanvases(tx *gorm.DB, folderID uint) error {
-	var canvasIDs []uint
-	if err := tx.Model(&models.Canvas{}).Where("folder_id = ?", folderID).
-		Pluck("id", &canvasIDs).Error; err != nil {
-		return err
-	}
-	for _, cid := range canvasIDs {
-		if err := s.deleteCanvasData(tx, cid); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// deleteCanvasData 删除画布下的 HTML 框、节点数据。
-func (s *TreeService) deleteCanvasData(tx *gorm.DB, canvasID uint) error {
-	var sceneIDs []uint
-	if err := tx.Model(&models.HtmlScene{}).Where("canvas_id = ?", canvasID).
-		Pluck("id", &sceneIDs).Error; err != nil {
-		return err
-	}
-	if len(sceneIDs) > 0 {
-		if err := tx.Where("scene_id IN ?", sceneIDs).Delete(&models.Node{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Where("id IN ?", sceneIDs).Delete(&models.HtmlScene{}).Error; err != nil {
-			return err
-		}
-	}
-	return tx.Delete(&models.Canvas{}, canvasID).Error
 }
 
 // ResetAll 初始化：清空数据库、清空存储目录，再创建默认结构。
@@ -370,7 +363,9 @@ func (s *TreeService) ResetAll() error {
 // EnsureDefaults 若项目为空，创建默认的「未分类」文件夹和「新画布」，并返回该画布。
 func (s *TreeService) EnsureDefaults() (*models.Canvas, error) {
 	var count int64
-	s.db.Model(&models.Folder{}).Count(&count)
+	if err := s.db.Unscoped().Model(&models.Folder{}).Count(&count).Error; err != nil {
+		return nil, err
+	}
 	if count > 0 {
 		return nil, nil
 	}
@@ -392,6 +387,21 @@ func (s *TreeService) ClearStorage() error {
 		if err := os.RemoveAll(filepath.Join(root, e.Name())); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func checkRenamePath(oldPath, newPath string) error {
+	if oldPath == newPath {
+		return nil
+	}
+	if target, err := os.Stat(newPath); err == nil {
+		if source, e := os.Stat(oldPath); e == nil && os.SameFile(source, target) {
+			return nil
+		}
+		return errors.New("同名目录已存在（可能属于已删除项目）")
+	} else if !os.IsNotExist(err) {
+		return err
 	}
 	return nil
 }

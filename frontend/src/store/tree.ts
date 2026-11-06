@@ -129,8 +129,8 @@ export const useTreeStore = defineStore('tree', {
       const kindName = m.kind === 'folder' ? '文件夹' : '画布'
       const tip =
         m.kind === 'folder'
-          ? '该操作会同步删除本地目录与其中所有画布，不可恢复！'
-          : '该画布中的所有 HTML 框与节点将一并删除！'
+          ? '文件夹及其下工程将从导航隐藏，数据和素材保留。暂未提供恢复入口。'
+          : '工程将从导航隐藏，节点和素材保留。暂未提供恢复入口。'
       if (!confirm(`确定删除${kindName}「${m.name}」？\n${tip}`)) {
         this.closeMenu()
         return

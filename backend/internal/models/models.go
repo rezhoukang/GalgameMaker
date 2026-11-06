@@ -1,7 +1,10 @@
 // Package models 定义数据实体：设置、文件夹、画布、HTML 框、节点、连线。
 package models
 
-import "time"
+import (
+	"gorm.io/gorm"
+	"time"
+)
 
 // Config 保存应用配置和撤回签名密钥。
 type Config struct {
@@ -13,21 +16,23 @@ func (Config) TableName() string { return "config" }
 
 // Folder 文件夹，映射到本地文件系统的真实目录。
 type Folder struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	ParentID  *uint     `json:"parentId"`
-	Name      string    `gorm:"not null;default:'未命名'" json:"name"`
-	Path      string    `json:"path"` // 本地文件系统真实路径
-	CreatedAt time.Time `json:"createdAt"`
+	DeleteAt  gorm.DeletedAt `gorm:"column:delete_at;index" json:"-"`
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	ParentID  *uint          `json:"parentId"`
+	Name      string         `gorm:"not null;default:'未命名'" json:"name"`
+	Path      string         `json:"path"` // 本地文件系统真实路径
+	CreatedAt time.Time      `json:"createdAt"`
 }
 
 // Canvas 画布（树里的「文件」），隶属于某个文件夹。
 // 画布内可添加多个 HTML 框（制作者做好的 HTML），每个 HTML 框上再有节点。
 type Canvas struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	FolderID  uint      `json:"folderId"`
-	Name      string    `gorm:"not null;default:'未命名'" json:"name"` // 画布名称
-	Path      string    `json:"path"`                               // 画布真实目录（存放 HTML 文件）
-	CreatedAt time.Time `json:"createdAt"`
+	DeleteAt  gorm.DeletedAt `gorm:"column:delete_at;index" json:"-"`
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	FolderID  uint           `json:"folderId"`
+	Name      string         `gorm:"not null;default:'未命名'" json:"name"` // 画布名称
+	Path      string         `json:"path"`                               // 画布真实目录（存放 HTML 文件）
+	CreatedAt time.Time      `json:"createdAt"`
 }
 
 // HtmlScene is a story node. Media references use a stable directory independent of its name.
@@ -57,7 +62,7 @@ type Node struct {
 	ID            uint      `gorm:"primaryKey" json:"id"`
 	Hash          string    `gorm:"size:32;uniqueIndex;not null" json:"hash"` // 出端口的稳定唯一标识
 	Name          string    `gorm:"column:option_content;not null;default:'选项'" json:"name"`
-	SceneID       uint      `gorm:"not null;index" json:"sceneId"` // 所属 HTML 框
+	SceneID       uint      `gorm:"not null;index" json:"sceneId"`                 // 所属 HTML 框
 	TargetKind    string    `gorm:"size:8;not null;default:mp4" json:"targetKind"` // 出端口跳转类型：mp4 / html
 	EndingContent string    `gorm:"not null;default:''" json:"endingContent"`      // 结局内容（末节点播完黑屏显示）
 	Entry         bool      `gorm:"-" json:"entry"`                                // 仅用于前端生成的入端口，不写数据库
