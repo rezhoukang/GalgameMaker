@@ -355,8 +355,6 @@ func (s *TreeService) ResetAll() error {
 		if err := tx.Exec("DELETE FROM folders").Error; err != nil {
 			return err
 		}
-		// 清理旧版本遗留的无用表
-		tx.Exec("DROP TABLE IF EXISTS html_files")
 		return nil
 	}); err != nil {
 		return err

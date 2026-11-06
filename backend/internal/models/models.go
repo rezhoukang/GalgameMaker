@@ -3,7 +3,7 @@ package models
 
 import "time"
 
-// Config 保存应用配置、迁移版本标记和撤回签名密钥。
+// Config 保存应用配置和撤回签名密钥。
 type Config struct {
 	Key   string `gorm:"primaryKey" json:"key"`
 	Value string `json:"value"`
@@ -69,5 +69,5 @@ type Node struct {
 	SortOrder     int       `gorm:"not null;default:0" json:"sortOrder"`
 }
 
-// Node is one outgoing port. The legacy nodes table is kept only as a migration backup.
+// Node is one outgoing port.
 func (Node) TableName() string { return "ports" }

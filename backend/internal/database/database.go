@@ -36,11 +36,6 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 		}
 	}()
 
-	// Rename before AutoMigrate so the signing key and migration markers are preserved.
-	if err := migrateConfig(db); err != nil {
-		return nil, err
-	}
-
 	// 自动建表
 	if err := db.AutoMigrate(
 		&models.Config{},
@@ -49,13 +44,6 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 		&models.HtmlScene{},
 		&models.Node{},
 	); err != nil {
-		return nil, err
-	}
-
-	if err := migratePorts(db); err != nil {
-		return nil, err
-	}
-	if err := removeLegacyPortColumns(db); err != nil {
 		return nil, err
 	}
 

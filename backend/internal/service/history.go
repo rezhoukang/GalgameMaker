@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"galgame-maker/internal/models"
 	"gorm.io/gorm"
@@ -29,7 +30,8 @@ func signView(db *gorm.DB, view CanvasView) (string, error) {
 			return "", err
 		}
 	}
-	data, err := marshalHistoryV1(view)
+	view.Token = ""
+	data, err := json.Marshal(view)
 	if err != nil {
 		return "", err
 	}
