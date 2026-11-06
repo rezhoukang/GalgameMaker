@@ -114,11 +114,13 @@ async function commitName() {
       height: height + 'px',
       borderRadius: NODE_RADIUS + 'px',
       borderColor: selected ? '#4f6bf6' : 'var(--border)',
+      '--node-radius': NODE_RADIUS + 'px',
+      '--branch-color': accent,
       '--port-offset': PORT_OFFSET + 'px'
     }"
   >
     <!-- 分支色条（左侧，跟随父分支颜色） -->
-    <div class="mm-stripe" :style="{ background: accent, borderRadius: NODE_RADIUS + 'px 0 0 ' + NODE_RADIUS + 'px' }" />
+    <div class="mm-stripe" aria-hidden="true" />
 
     <!-- 标题行 -->
     <div class="mm-title" @click.stop="onSelect" :title="`层级 ${scene.level} · 出端口 ${scene.portNum} 个${scene.isRoot ? ' · 根节点不可删除' : ''}`">
@@ -170,7 +172,7 @@ async function commitName() {
   box-shadow: 0 3px 14px rgba(28, 28, 34, 0.08);
   transition: box-shadow 0.15s, border-color 0.15s;
 }
-.mm-node:hover:not(:has(.ball.add:hover)) {
+.mm-node:hover:not(.selected):not(.flash):not(:has(.ball.add:hover)) {
   box-shadow: 0 8px 26px rgba(28, 28, 34, 0.14);
 }
 .mm-node.selected {
@@ -189,13 +191,12 @@ async function commitName() {
     box-shadow: 0 0 0 10px rgba(249, 115, 22, 0.5);
   }
 }
-/* 分支色条 */
+/* 色条沿卡片内圆角裁切，端口和折叠按钮仍可伸出卡片。 */
 .mm-stripe {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 5px;
+  inset: 0;
+  border-radius: calc(var(--node-radius) - 1px);
+  background: linear-gradient(to right, var(--branch-color) 5px, transparent 5px);
   pointer-events: none;
 }
 .mm-title {
