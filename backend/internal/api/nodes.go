@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// updateNode 更新节点（名称/坐标）。
+// updateNode 更新出端口的选项与播放配置。
 func (h *Handlers) updateNode(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -16,16 +16,15 @@ func (h *Handlers) updateNode(c *gin.Context) {
 	}
 	var req struct {
 		Name          string  `json:"name"`
-		X             float64 `json:"x"`
-		Y             float64 `json:"y"`
 		EndingContent *string `json:"endingContent"`
 		TargetKind    *string `json:"targetKind"`
+		ShowOption    *bool   `json:"showOption"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		fail(c, http.StatusBadRequest, 400, "请求参数错误")
 		return
 	}
-	node, err := h.nodes.UpdateNode(uint(id), req.Name, req.X, req.Y, req.EndingContent, req.TargetKind)
+	node, err := h.nodes.UpdateNode(uint(id), req.Name, req.EndingContent, req.TargetKind, req.ShowOption)
 	if err != nil {
 		fail(c, http.StatusBadRequest, 400, err.Error())
 		return

@@ -35,7 +35,7 @@ async function save() {
   const v = name.value.trim()
   if (v && v !== stripExt(sc.name)) {
     try {
-      await store.renameScene(sc.id, v)
+      if (!await store.renameScene(sc.id, v)) return
     } catch (e: any) {
       app.handleApiError(e)
     }
@@ -69,17 +69,16 @@ async function onHtmlPick(e: Event) {
   }
 }
 
-function del() {
+async function del() {
   const sc = scene.value
-  if (sc) store.deleteScene(sc.id)
-  emit('close')
+  if (sc && await store.deleteScene(sc.id)) emit('close')
 }
 </script>
 
 <template>
   <div class="modal-mask" @click.self="emit('close')">
     <div class="modal html-edit">
-      <h3><AppIcon name="file" :size="17" /> 节点编辑（文件夹）</h3>
+      <h3><AppIcon name="file" :size="17" /> 节点属性</h3>
 
       <div class="first-wrap">
         <button
@@ -94,14 +93,12 @@ function del() {
           <span>{{ isFirst ? '第一个播放' : '设为第一个播放' }}</span>
         </button>
         <div class="first-tip">
-          节点 = 一个文件夹，里面可以放 HTML 页面和 MP4 视频。
-          点一下让这个节点成为「开始」（蓝色亮起），导出后从它开始播放；
-          所有节点只能有一个亮起。
+          每个工程恰好有一个播放起点。根节点不可删除，普通分支按层级排列。
         </div>
       </div>
 
       <div class="field">
-        <label>节点名称（文件夹名）</label>
+        <label>节点名称</label>
         <input
           ref="nameRef"
           v-model="name"
@@ -112,11 +109,11 @@ function del() {
       </div>
 
       <div class="field">
-        <label>视频（放到节点文件夹；播放完才显示选项）</label>
+        <label>视频（播放结束后进入选项或自动继续）</label>
         <div class="video-row">
           <input ref="videoInput" type="file" accept=".mp4" style="display:none" @change="onVideoPick" />
           <button class="btn" @click="videoInput?.click()"><AppIcon name="upload" :size="14" /> 插入 MP4</button>
-          <span class="video-name">{{ scene?.video ? scene.video : '未插入视频' }}</span>
+          <span class="video-name">{{ scene?.video ? '已导入 MP4' : '未插入视频' }}</span>
         </div>
       </div>
 
@@ -125,12 +122,12 @@ function del() {
         <div class="video-row">
           <input ref="htmlInput" type="file" accept=".html,.htm" style="display:none" @change="onHtmlPick" />
           <button class="btn" @click="htmlInput?.click()"><AppIcon name="upload" :size="14" /> 导入 HTML</button>
-          <span class="video-name">覆盖为 <文件夹名>.html</span>
+          <span class="video-name">{{ scene?.htmlFile ? '已导入 HTML' : '未导入 HTML' }}</span>
         </div>
       </div>
 
       <div class="field">
-        <label>所属画布</label>
+        <label>所属工程 · 层级 {{ scene?.level }} · 出端口 {{ scene?.portNum }} 个</label>
         <div class="file-row">
           <AppIcon name="file" :size="15" />
           <span class="fname">{{ store.canvasName }}</span>
@@ -138,10 +135,10 @@ function del() {
       </div>
 
       <div class="row">
-        <button class="btn danger" @click="del"><AppIcon name="trash" :size="13" /> 删除 HTML</button>
+        <button class="btn danger" :disabled="scene?.isRoot || store.busy" @click="del"><AppIcon name="trash" :size="13" /> {{ scene?.isRoot ? '根节点不可删除' : '删除节点' }}</button>
         <div class="spacer" />
         <button class="btn" @click="emit('close')">取消</button>
-        <button class="btn primary" @click="save">保存</button>
+        <button class="btn primary" :disabled="store.busy" @click="save">保存</button>
       </div>
     </div>
   </div>

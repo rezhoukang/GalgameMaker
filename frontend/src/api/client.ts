@@ -86,25 +86,25 @@ export const api = {
   },
   // 从节点的右侧加号创建下一跳：新增出端口 + 右侧空白节点（带入端口），两端共用同一哈希
   createNextNode: (sceneId: number) =>
-    request<{ scene: HtmlScene; outNode: NodeItem; entryNode: NodeItem }>(`/api/scenes/${sceneId}/next`, {
+    request<{ scene: HtmlScene; outNode: NodeItem; entryNode: null }>(`/api/scenes/${sceneId}/next`, {
       method: 'POST'
     }),
   // 新建魔法出端口并连向指定哈希的节点（不画线、导出生效）
   createMagicPort: (sceneId: number, hash: string) =>
-    request<{ outNode: NodeItem; entryNode: NodeItem }>(`/api/scenes/${sceneId}/magic-port`, {
+    request<{ outNode: NodeItem; entryNode: null }>(`/api/scenes/${sceneId}/magic-port`, {
       method: 'POST',
       body: JSON.stringify({ hash })
     }),
-  // 设为全局「开始」区块（唯一，导出入口）
+  // 设为当前工程的播放起点
   setFirstScene: (id: number) => request<HtmlScene>(`/api/scenes/${id}/first`, { method: 'POST' }),
 
-  // 节点（配对即「哈希相同」，无独立连线表）
+  // 出端口，入端口只是前端展示
   updateNode: (
     id: number,
-    data: { name?: string; x?: number; y?: number; endingContent?: string; targetKind?: string }
+    data: { name?: string; endingContent?: string; targetKind?: string; showOption?: boolean }
   ) => request<NodeItem>(`/api/nodes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteNode: (id: number) => request<void>(`/api/nodes/${id}`, { method: 'DELETE' }),
-  // 断开端口连接：删除当前端口与配对端口（保留节点，不删子树）
+  // 断开魔法连接；普通连接需移动或删除分支
   breakNode: (id: number) => request<void>(`/api/nodes/${id}/break`, { method: 'DELETE' }),
   // 重定向端口一端到指定节点（按节点哈希）：side=prev 改上一节点 / next 改下一节点
   redirectNode: (id: number, hash: string, side: 'prev' | 'next') =>
@@ -112,6 +112,11 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ hash, side })
     }),
+
+  restoreCanvas: (id: number, expected: string, snapshot: CanvasView) =>
+    request<CanvasView>(`/api/canvas/${id}/restore`, {method: 'PUT', body: JSON.stringify({expected, snapshot})}),
+  copyProperties: (id: number, sourceId: number, snapshot: CanvasView) =>
+    request<void>(`/api/scenes/${id}/copy-properties`, {method: 'POST', body: JSON.stringify({sourceId, snapshot})}),
 
   // 导出
   // 导出指定画布为单页播放器 + 资源目录

@@ -22,6 +22,7 @@ const isPaired = computed(() => !!pairInfo.value)
 
 const name = ref(primary.value.name)
 const ending = ref(primary.value.endingContent ?? '')
+const showOption = ref(primary.value.showOption)
 const kind = ref(primary.value.targetKind === 'html' ? 'html' : 'mp4')
 
 watch(
@@ -55,18 +56,14 @@ const nextHash = ref(linkInfo.value?.nextScene?.hash ?? '')
 async function doRedirectPrev() {
   const h = prevHash.value.trim()
   if (!h) return
-  prevHash.value = ''
-  await store.redirectNode(props.node.id, h, 'prev')
-  emit('close')
+  if (await store.redirectNode(props.node.id, h, 'prev')) emit('close')
 }
 
 /** 通过节点哈希修改下一节点（移动入端口） */
 async function doRedirectNext() {
   const h = nextHash.value.trim()
   if (!h) return
-  nextHash.value = ''
-  await store.redirectNode(props.node.id, h, 'next')
-  emit('close')
+  if (await store.redirectNode(props.node.id, h, 'next')) emit('close')
 }
 
 onMounted(() => {
@@ -75,17 +72,17 @@ onMounted(() => {
 
 async function save() {
   const p = primary.value
-  await store.saveNode(p.id, {
+  const ok = await store.saveNode(p.id, {
     name: name.value.trim() || p.name,
     endingContent: ending.value,
-    targetKind: kind.value
+    targetKind: kind.value,
+    showOption: showOption.value
   })
-  emit('close')
+  if (ok) emit('close')
 }
 
-function del() {
-  store.deleteNode(props.node.id)
-  emit('close')
+async function del() {
+  if (await store.deleteNode(props.node.id)) emit('close')
 }
 </script>
 
@@ -95,26 +92,31 @@ function del() {
       <h3><AppIcon name="file" :size="17" /> 端口 <span class="hash">#{{ node.hash }}</span></h3>
 
       <div v-if="isPaired" class="hint-line">
-        该出/入端口与配对端口<strong>共享同一份配置</strong>：改名、结局、跳转类型会同时生效。
+        这里编辑同一条连接的选项、目标和播放方式。
       </div>
 
       <div class="field">
-        <label>端口名称</label>
+        <label>选项内容</label>
         <input
           ref="nameRef"
           v-model="name"
-          placeholder="节点名称"
+          placeholder="视频结束后显示的选项文案"
           @keyup.enter="save"
           @keyup.esc="emit('close')"
         />
       </div>
 
       <div class="field">
-        <label>所属 HTML 框</label>
+        <label>所属节点</label>
         <div class="file-row">
           <AppIcon name="file" :size="15" />
           <span class="fname">{{ sceneName }}</span>
         </div>
+      </div>
+
+      <div class="field">
+        <label><input v-model="showOption" type="checkbox" /> 视频结束后显示此选项</label>
+        <p class="hint-line">取消勾选表示自动继续；该节点必须恰好有一个出口。</p>
       </div>
 
       <div class="field">
@@ -136,14 +138,14 @@ function del() {
       </div>
 
       <div class="field">
-        <label>配对端口（同一哈希，出/入通用）</label>
+        <label>连接另一端</label>
         <div v-if="pairInfo" class="out-info">
           <span class="out-name">{{ pairInfo.peer?.name || '?' }}</span>
           <span class="out-scene">↔ {{ stripExt(pairInfo.peerScene?.name || '?') }}</span>
           <span v-if="pairInfo.peer?.magic" class="magic-badge">魔法端口（画布不画线）</span>
           <button class="btn" title="跳到配对端口所在节点并高亮" @click="findPair">寻找</button>
         </div>
-        <div v-else class="out-empty">未配对（该端口没有对应的另一端）</div>
+        <div v-else class="out-empty">目标节点不存在</div>
       </div>
 
       <div class="field">
@@ -175,7 +177,7 @@ function del() {
         <button class="btn danger" @click="del"><AppIcon name="trash" :size="13" /> 删除端口</button>
         <div class="spacer" />
         <button class="btn" @click="emit('close')">取消</button>
-        <button class="btn primary" @click="save">保存</button>
+        <button class="btn primary" :disabled="store.busy" @click="save">保存</button>
       </div>
     </div>
   </div>

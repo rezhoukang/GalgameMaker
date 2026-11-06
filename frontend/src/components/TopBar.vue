@@ -23,6 +23,7 @@ async function onReset() {
 
 /** 导出前检测：空端口/双角色端口/跳转资源缺失，有问题则列出并中止 */
 async function onExport() {
+  if (canvas.busy) return
   if (canvas.canvasId == null) {
     app.notify('请先在左侧选择要导出的画布', 'error')
     return
@@ -61,7 +62,7 @@ async function onExport() {
       <AppIcon name="close" :size="13" />
       初始化
     </button>
-    <button class="btn export" title="导出为单页播放器 + 资源目录（先自动检测问题）" @click="onExport">
+    <button class="btn export" :disabled="canvas.busy" title="导出为单页播放器 + 资源目录（先自动检测问题）" @click="onExport">
       <AppIcon name="export" :size="15" />
       导出 Galgame Output
     </button>

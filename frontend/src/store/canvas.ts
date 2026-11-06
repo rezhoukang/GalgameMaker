@@ -1,10 +1,9 @@
-// 画布状态：画布 = 节点（HtmlScene）+ 端口（Node）。
-// 端口配对即「哈希相同」：一对出/入端口共用同一哈希，哈希相同即相连（无独立连线表）。
+// 剧情节点与出端口来自后端；入端口仅在 applySnapshot 中推导。
 import { defineStore } from 'pinia'
 import { api } from '@/api/client'
 import { useAppStore } from './app'
 import { useTreeStore } from './tree'
-import type { HtmlScene, NodeItem } from '@/types'
+import type { HtmlScene, NodeItem, CanvasView } from '@/types'
 import {
   MAGIC_COLOR,
   MIND_COLORS,
@@ -15,7 +14,7 @@ import {
   ZOOM_MAX,
   ZOOM_MIN
 } from '@/canvasLayout'
-import { computeMindLayout, sceneDisplayHeight } from '@/mindLayout'
+import { computeMindLayout } from '@/mindLayout'
 
 export interface ViewState {
   x: number
@@ -60,6 +59,13 @@ function portColor(nodes: NodeItem[], nodeId: number): string {
 
 export const useCanvasStore = defineStore('canvas', {
   state: () => ({
+    snapshot: null as CanvasView | null,
+    past: [] as CanvasView[],
+    future: [] as CanvasView[],
+    busy: false,
+    cacheWarning: false,
+    clipboard: null as { sourceId: number; snapshot: CanvasView } | null,
+
     canvasId: null as number | null,
     canvasName: '',
     scenes: [] as HtmlScene[],
@@ -74,6 +80,8 @@ export const useCanvasStore = defineStore('canvas', {
   }),
 
   getters: {
+    canUndo: (s) => !s.busy && s.past.length > 0,
+    canRedo: (s) => !s.busy && s.future.length > 0,
     nodeById: (s) => (id: number) => s.nodes.find((n) => n.id === id),
     sceneById: (s) => (id: number) => s.scenes.find((sc) => sc.id === id),
 
@@ -141,7 +149,7 @@ export const useCanvasStore = defineStore('canvas', {
     /** 端口在画布上的世界坐标：入端口贴节点左边缘、出端口贴右边缘，以固定行距散开（卡片高度不变） */
     ballWorld: (s) => (node: NodeItem) => {
       const scene = s.scenes.find((sc) => sc.id === node.sceneId)
-      if (!scene) return { x: node.x, y: node.y }
+      if (!scene) return { x: 0, y: 0 }
       const mine = s.nodes.filter((n) => n.sceneId === scene.id)
       const isEntry = node.entry
       const col = isEntry ? mine.filter((n) => n.entry) : mine.filter((n) => !n.entry)
@@ -154,165 +162,139 @@ export const useCanvasStore = defineStore('canvas', {
 
   actions: {
     clear() {
-      this.canvasId = null
-      this.canvasName = ''
-      this.scenes = []
-      this.nodes = []
-      this.selectedSceneId = null
-      this.editingNode = null
-      this.editingScene = null
-      this.flashSceneId = null
-      this.collapsedSceneIds = []
-      this.interaction = null
-      this.view = { x: 0, y: 0, zoom: 1 }
+      this.saveCache()
+      this.canvasId = null; this.canvasName = ''; this.scenes = []; this.nodes = []
+      this.snapshot = null; this.past = []; this.future = []
+      this.selectedSceneId = null; this.editingNode = null; this.editingScene = null
+      this.collapsedSceneIds = []; this.interaction = null; this.view = { x: 0, y: 0, zoom: 1 }
+    },
+
+    applySnapshot(view: CanvasView) {
+      this.snapshot = JSON.parse(JSON.stringify(view))
+      this.scenes = view.scenes.map(s => ({...s}))
+      const byHash = new Map(this.scenes.map(s => [s.hash, s.id]))
+      this.nodes = view.nodes.flatMap(p => {
+        const out = {...p, entry: false}
+        const targetId = byHash.get(p.exportHash)
+        return targetId == null ? [out] : [out, {...out, id: -p.id, sceneId: targetId, entry: true}]
+      })
+      if (this.selectedSceneId != null && !this.sceneById(this.selectedSceneId)) this.selectedSceneId = null
+      this.collapsedSceneIds = this.collapsedSceneIds.filter(id => this.sceneById(id))
+      this.relayout()
+    },
+
+    saveCache() {
+      if (!this.canvasId || !this.snapshot) return
+      try {
+        localStorage.setItem(`galgame-history-v1-${this.canvasId}`, JSON.stringify({
+          token: this.snapshot.token, past: this.past, future: this.future,
+          view: this.view, collapsed: this.collapsedSceneIds
+        }))
+      } catch {
+        if (!this.cacheWarning) { this.cacheWarning = true; useAppStore().notify('本地缓存空间不足，本次撤回仍可用，刷新后历史可能丢失', 'error') }
+      }
     },
 
     async openCanvas(id: number, name: string) {
-      const app = useAppStore()
+      if (this.busy) return
+      this.busy = true
+      this.saveCache()
       try {
         const view = await api.getCanvas(id)
-        this.canvasId = id
-        this.canvasName = name
-        this.scenes = view.scenes
-        this.nodes = view.nodes
-        this.syncSceneCounts()
-        this.selectedSceneId = null
-        this.editingNode = null
-        this.editingScene = null
-        this.interaction = null
-        this.collapsedSceneIds = []
-        await this.relayout()
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
+        this.canvasId = id; this.canvasName = name
+        this.past = []; this.future = []; this.collapsedSceneIds = []
+        this.editingNode = null; this.editingScene = null; this.selectedSceneId = null
+        this.view = { x: 0, y: 0, zoom: 1 }
+        try {
+          const cache = JSON.parse(localStorage.getItem(`galgame-history-v1-${id}`) || 'null')
+          if (cache?.token === view.token) {
+            if (Array.isArray(cache.past)) this.past = cache.past.slice(-50)
+            if (Array.isArray(cache.future)) this.future = cache.future.slice(-50)
+            if (cache.view && [cache.view.x, cache.view.y, cache.view.zoom].every(Number.isFinite)) this.view = {...cache.view, zoom: clamp(cache.view.zoom, ZOOM_MIN, ZOOM_MAX)}
+            if (Array.isArray(cache.collapsed)) this.collapsedSceneIds = cache.collapsed
+          }
+        } catch { /* Ignore malformed browser cache; server data remains authoritative. */ }
+        this.applySnapshot(view)
+      } catch (e: any) { useAppStore().handleApiError(e) }
+      finally { this.busy = false }
     },
 
-    /** 思维导图自动布局：重算所有节点坐标（结构变化/打开画布时调用），差分后持久化 */
-    async relayout() {
-      const pos = computeMindLayout(
-        this.scenes,
-        this.nodes,
-        new Set(this.collapsedSceneIds)
-      )
-      let changed = false
-      for (const sc of this.scenes) {
-        const p = pos.get(sc.id)
-        if (!p) continue
-        if (Math.round(sc.x) !== Math.round(p.x) || Math.round(sc.y) !== Math.round(p.y)) {
-          sc.x = p.x
-          sc.y = p.y
-          changed = true
-        }
-      }
-      if (!changed) return
+    relayout() {
+      const positions = computeMindLayout(this.scenes, this.nodes, new Set<number>())
+      for (const sc of this.scenes) { const p = positions.get(sc.id); if (p) { sc.x = p.x; sc.y = p.y } }
+    },
+
+    async edit(action: () => Promise<unknown>, message = ''): Promise<boolean> {
+      if (this.busy || this.canvasId == null) return false
+      this.busy = true
+      const id = this.canvasId
+      let before: CanvasView | null = null
+      let recorded = false
       try {
-        for (const sc of this.scenes) {
-          await api.updateScene(sc.id, { x: Math.round(sc.x), y: Math.round(sc.y) })
-        }
+        before = await api.getCanvas(id)
+        if (before.token !== this.snapshot?.token) { this.past = []; this.future = [] }
+        await action()
+        const after = await api.getCanvas(id)
+        if (before.token !== after.token) { this.past.push(before); this.past = this.past.slice(-50); this.future = []; recorded = true }
+        this.applySnapshot(after); this.saveCache()
+        await useTreeStore().load()
+        if (message) useAppStore().notify(message, 'success')
+        return true
       } catch (e: any) {
         useAppStore().handleApiError(e)
-      }
+        try {
+          const after = await api.getCanvas(id)
+          if (before && before.token !== after.token && !recorded) {
+            this.past.push(before); this.past = this.past.slice(-50); this.future = []
+          }
+          this.applySnapshot(after); this.saveCache()
+        } catch { /* Keep existing view if disconnected. */ }
+        return false
+      } finally { this.busy = false }
     },
 
-    selectScene(id: number) {
-      this.selectedSceneId = id
-    },
-
-    // ---------- HTML 框操作 ----------
-
-    async renameScene(id: number, newName: string) {
-      if (typeof id !== 'number' || Number.isNaN(id)) return // 防御：id 非法不发请求
-      const app = useAppStore()
+    async travel(redo: boolean) {
+      if (this.busy || !this.canvasId || !this.snapshot) return
+      const stack = redo ? this.future : this.past
+      const target = stack[stack.length - 1]
+      if (!target) return
+      this.busy = true
       try {
-        const updated = await api.updateScene(id, { name: newName })
-        const i = this.scenes.findIndex((sc) => sc.id === id)
-        if (i >= 0) this.scenes[i] = updated
-        useTreeStore().load()
-        app.notify('已重命名', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
+        const current = this.snapshot
+        const restored = await api.restoreCanvas(this.canvasId, current.token, target)
+        stack.pop(); (redo ? this.past : this.future).push(current)
+        this.editingNode = null; this.editingScene = null
+        this.applySnapshot(restored); this.saveCache()
+        await useTreeStore().load()
+        useAppStore().notify(redo ? '已重做' : '已撤回', 'success')
+      } catch (e: any) { useAppStore().handleApiError(e) }
+      finally { this.busy = false }
     },
-
+    undo() { return this.travel(false) },
+    redo() { return this.travel(true) },
+    selectScene(id: number) { this.selectedSceneId = id },
+    renameScene(id: number, name: string) { return this.edit(() => api.updateScene(id, {name}), '已重命名') },
     async deleteScene(id: number) {
-      const app = useAppStore()
       const sc = this.sceneById(id)
-      if (!sc) return
-      if (!confirm(`确定删除 HTML 框「${sc.name}」？\n其上的所有节点与连线将一并删除！`)) return
-      try {
-        await api.deleteScene(id)
-        await this.refreshCanvas() // 后端会级联删配对端口，拉最新数据同步
-        if (this.selectedSceneId === id) this.selectedSceneId = null
-        this.syncSceneCounts()
-        useTreeStore().load()
-        await this.relayout()
-        app.notify('节点已删除', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
+      if (!sc) return false
+      if (sc.isRoot) { useAppStore().notify('根节点不可删除', 'error'); return false }
+      if (!confirm(`删除「${sc.name}」及其普通子树？指向它们的魔法连接也会移除，可撤回。`)) return false
+      return this.edit(() => api.deleteScene(id), '已删除分支，可撤回')
     },
-
-    /** 重新从后端拉取画布数据（删除级联后同步前后端） */
-    async refreshCanvas() {
-      if (this.canvasId == null) return
-      const view = await api.getCanvas(this.canvasId)
-      this.scenes = view.scenes
-      this.nodes = view.nodes
-      this.syncSceneCounts()
+    async refreshCanvas() { if (this.canvasId) this.applySnapshot(await api.getCanvas(this.canvasId)) },
+    addNextNode(id: number) { return this.edit(() => api.createNextNode(id)) },
+    uploadVideo(id: number, file: File) { return this.edit(() => api.uploadSceneVideo(id, file), '已导入视频') },
+    uploadHtml(id: number, file: File) { return this.edit(() => api.uploadSceneHtml(id, file), '已导入 HTML') },
+    setFirstScene(id: number) { return this.edit(() => api.setFirstScene(id), '已设为播放起点') },
+    copyProperties() {
+      if (this.selectedSceneId == null || !this.snapshot) return
+      this.clipboard = {sourceId: this.selectedSceneId, snapshot: JSON.parse(JSON.stringify(this.snapshot))}
+      useAppStore().notify('已复制节点内容属性', 'success')
     },
-
-    /** 从节点的右侧加号创建下一跳：出端口 + 右侧空白节点（带入端口）+ 连线 */
-    async addNextNode(sceneId: number) {
-      const app = useAppStore()
-      try {
-        const res = await api.createNextNode(sceneId)
-        if (res?.scene) this.scenes.push(res.scene)
-        if (res?.outNode) this.nodes.push(res.outNode)
-        if (res?.entryNode) this.nodes.push(res.entryNode)
-        this.syncSceneCounts()
-        useTreeStore().load()
-        await this.relayout()
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
-    },
-
-    /** 为 HTML 框插入关联视频 */
-    async uploadVideo(id: number, file: File) {
-      const app = useAppStore()
-      try {
-        const updated = await api.uploadSceneVideo(id, file)
-        const i = this.scenes.findIndex((sc) => sc.id === id)
-        if (i >= 0) this.scenes[i] = updated
-        app.notify('已插入视频', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
-    },
-
-    /** 导入/覆盖节点的 HTML 内容 */
-    async uploadHtml(id: number, file: File) {
-      const app = useAppStore()
-      try {
-        const updated = await api.uploadSceneHtml(id, file)
-        const i = this.scenes.findIndex((sc) => sc.id === id)
-        if (i >= 0) this.scenes[i] = updated
-        app.notify('已导入 HTML', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
-    },
-
-    /** 把 HTML 框设为全局唯一的「开始」区块 */
-    async setFirstScene(id: number) {
-      const app = useAppStore()
-      try {
-        const updated = await api.setFirstScene(id)
-        this.scenes = this.scenes.map((s) => (s.id === id ? updated : { ...s, first: false }))
-        app.notify('已设为开始区块', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
+    pasteProperties() {
+      const clip = this.clipboard, id = this.selectedSceneId
+      if (!clip || id == null || clip.snapshot.canvasId !== this.canvasId) return
+      return this.edit(() => api.copyProperties(id, clip.sourceId, clip.snapshot), '已粘贴节点内容属性')
     },
 
     /** 定位视图到某个节点并选中（魔法跳跃） */
@@ -320,6 +302,7 @@ export const useCanvasStore = defineStore('canvas', {
       const sc = this.sceneById(sceneId)
       if (!sc) return
       this.selectedSceneId = sceneId
+      this.collapsedSceneIds = []
       this.editingNode = null
       this.editingScene = null
       const w = sceneWidth(sc)
@@ -337,38 +320,7 @@ export const useCanvasStore = defineStore('canvas', {
       return true
     },
 
-    /** 本地重算节点端口统计字段（与后端一致），端口增删后调用 */
-    syncSceneCounts() {
-      for (const sc of this.scenes) {
-        const mine = this.nodes.filter((n) => n.sceneId === sc.id)
-        let out = 0
-        let inc = 0
-        let magic = false
-        for (const n of mine) {
-          if (n.magic) magic = true
-          if (!pairOf(this.nodes, n.id)) continue
-          if (n.entry) inc++
-          else out++
-        }
-        sc.outCount = out
-        sc.inCount = inc
-        sc.hasMagic = magic
-      }
-    },
-
-    /** 新建魔法端口：右键加号球 → 输入目标节点哈希，出端口与目标入端口对应、不连线（hidden） */
-    async addMagicPort(sceneId: number, hash: string) {
-      const app = useAppStore()
-      try {
-        const res = await api.createMagicPort(sceneId, hash)
-        if (res?.outNode) this.nodes.push(res.outNode)
-        if (res?.entryNode) this.nodes.push(res.entryNode)
-        this.syncSceneCounts()
-        app.notify('已新增魔法端口（画布不画线，导出生效）', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
-    },
+    addMagicPort(id: number, hash: string) { return this.edit(() => api.createMagicPort(id, hash), '已新增魔法端口') },
 
     /** 寻找：定位到指定哈希的节点（HTML 框）并高亮闪烁 */
     highlightSceneByHash(hash: string): boolean {
@@ -382,105 +334,24 @@ export const useCanvasStore = defineStore('canvas', {
       return true
     },
 
-    // ---------- 节点操作 ----------
-
-    async renameNode(id: number, name: string) {
-      const app = useAppStore()
-      try {
-        const updated = await api.updateNode(id, { name })
-        const i = this.nodes.findIndex((n) => n.id === id)
-        if (i >= 0) this.nodes[i] = updated
-        this.editingNode = null
-        useTreeStore().load()
-        app.notify('已保存', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
+    renameNode(id: number, name: string) { return this.edit(() => api.updateNode(Math.abs(id), {name}), '已保存') },
+    async saveNode(id: number, data: {name: string; endingContent: string; targetKind?: string; showOption?: boolean}) {
+      const ok = await this.edit(() => api.updateNode(Math.abs(id), data), '已保存')
+      if (ok) this.editingNode = null
+      return ok
     },
-
-    /** 保存端口名称 + 结局内容 + 跳转类型 */
-    async saveNode(id: number, data: { name: string; endingContent: string; targetKind?: string }) {
-      const app = useAppStore()
-      try {
-        const updated = await api.updateNode(id, {
-          name: data.name,
-          endingContent: data.endingContent,
-          targetKind: data.targetKind
-        })
-        const i = this.nodes.findIndex((n) => n.id === id)
-        if (i >= 0) this.nodes[i] = updated
-        // 后端已把配对端口同步（syncPortPair），前端也同步配对端口，避免端口球标签要刷新才更新
-        const peer = pairOf(this.nodes, id)
-        if (peer) {
-          const j = this.nodes.findIndex((n) => n.id === peer.id)
-          if (j >= 0) {
-            this.nodes[j] = {
-              ...this.nodes[j],
-              name: updated.name,
-              endingContent: updated.endingContent,
-              targetKind: updated.targetKind
-            }
-          }
-        }
-        this.editingNode = null
-        useTreeStore().load()
-        app.notify('已保存', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
-    },
-
     async deleteNode(id: number) {
-      const app = useAppStore()
-      const node = this.nodeById(id)
-      if (!node) return
-      const isEntry = !!node.entry
-      const tip = isEntry
-        ? '确定删除该入端口？其对应的出端口也将一并删除。'
-        : '确定删除该出端口？其下（目标下一跳节点）的所有节点和端口将一并删除！'
-      if (!confirm(`确定删除端口「${node.name}」？\n${tip}`)) return
-      try {
-        await api.deleteNode(id)
-        await this.refreshCanvas() // 配对端口/子树由后端级联删除，拉最新数据同步
-        if (this.selectedSceneId != null && !this.sceneById(this.selectedSceneId)) this.selectedSceneId = null
-        if (this.editingNode?.id === id) this.editingNode = null
-        this.syncSceneCounts()
-        useTreeStore().load()
-        await this.relayout()
-        app.notify('端口已删除', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
+      const p = this.nodeById(id)
+      if (!p) return false
+      const tip = p.magic ? '删除这条魔法连接？目标节点保留。' : '删除这条普通连接及其目标子树？可撤回。'
+      if (!confirm(tip)) return false
+      const ok = await this.edit(() => api.deleteNode(Math.abs(id)), '已删除，可撤回')
+      if (ok) this.editingNode = null
+      return ok
     },
-
-    /** 断开端口连接：删除当前端口与配对端口（保留节点，不删子树） */
-    async breakNode(id: number) {
-      const app = useAppStore()
-      try {
-        const peer = pairOf(this.nodes, id)
-        await api.breakNode(id)
-        this.nodes = this.nodes.filter((n) => n.id !== id && n.id !== peer?.id)
-        if (this.editingNode?.id === id) this.editingNode = null
-        this.syncSceneCounts()
-        useTreeStore().load()
-        app.notify('已断开', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
-    },
-
-    /** 重定向端口一端到指定节点（按哈希）：side=prev 改上一节点 / next 改下一节点 */
-    async redirectNode(id: number, hash: string, side: 'prev' | 'next') {
-      const app = useAppStore()
-      try {
-        await api.redirectNode(id, hash, side)
-        await this.refreshCanvas()
-        useTreeStore().load()
-        await this.relayout()
-        app.notify(side === 'prev' ? '已修改上一节点' : '已修改下一节点', 'success')
-      } catch (e: any) {
-        app.handleApiError(e)
-      }
+    breakNode(id: number) { return this.edit(() => api.breakNode(Math.abs(id)), '已断开') },
+    redirectNode(id: number, hash: string, side: 'prev' | 'next') {
+      return this.edit(() => api.redirectNode(Math.abs(id), hash, side), '已修改连接')
     },
 
     // ---------- 视图：缩放 / 平移 ----------
@@ -492,6 +363,7 @@ export const useCanvasStore = defineStore('canvas', {
       this.view.zoom = z
       this.view.x = sx - wx * z
       this.view.y = sy - wy * z
+      this.saveCache()
     },
 
     beginPan(clientX: number, clientY: number) {
@@ -507,6 +379,7 @@ export const useCanvasStore = defineStore('canvas', {
     },
     endPan() {
       if (this.interaction?.type === 'pan') this.interaction = null
+      this.saveCache()
     },
 
     /** 折叠/展开某节点的子树：只隐藏/显示，不重排坐标（避免收起时节点位移） */
@@ -514,6 +387,7 @@ export const useCanvasStore = defineStore('canvas', {
       const i = this.collapsedSceneIds.indexOf(sceneId)
       if (i >= 0) this.collapsedSceneIds.splice(i, 1)
       else this.collapsedSceneIds.push(sceneId)
+      this.saveCache()
     }
   }
 })

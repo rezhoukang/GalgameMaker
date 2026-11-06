@@ -37,10 +37,12 @@ type LinkInfo struct {
 	Label      string `json:"label"`
 	TargetID   uint   `json:"target"`
 	TargetKind string `json:"kind"` // mp4 / html
+	ShowOption bool   `json:"showOption"`
 }
 
 // SceneRes 节点导出的资源与选项。
 type SceneRes struct {
+	Hash    string     `json:"hash"`
 	Name    string     `json:"name"`
 	HTML    string     `json:"html"` // dist 内相对文件名，空=无 HTML
 	MP4s    []string   `json:"mp4s"` // dist 内相对文件名列表（多个视频）
@@ -55,181 +57,72 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 	if err := s.settings.EnsureStorageConfigured(); err != nil {
 		return nil, err
 	}
-	rootDir := s.settings.GetOutputDir()
-	ts := time.Now().Format("20060102-150405")
-	outDir := filepath.Join(rootDir, ts)
-	distDir := filepath.Join(outDir, "dist")
-	if err := os.MkdirAll(distDir, 0o755); err != nil {
-		return nil, fmt.Errorf("创建导出目录失败: %w", err)
-	}
-
-	var scenes []models.HtmlScene
-	if err := s.db.Where("canvas_id = ?", canvasID).Order("id ASC").Find(&scenes).Error; err != nil {
+	issues, err := NewNodeService(s.db).CheckCanvas(canvasID)
+	if err != nil {
 		return nil, err
-	}
-	var canvases []models.Canvas
-	if err := s.db.Find(&canvases).Error; err != nil {
-		return nil, err
-	}
-	canvasByID := map[uint]*models.Canvas{}
-	for i := range canvases {
-		canvasByID[canvases[i].ID] = &canvases[i]
-	}
-	var nodes []models.Node
-	if len(scenes) > 0 {
-		sceneIDs := make([]uint, 0, len(scenes))
-		for _, sc := range scenes {
-			sceneIDs = append(sceneIDs, sc.ID)
-		}
-		if err := s.db.Where("scene_id IN ?", sceneIDs).Find(&nodes).Error; err != nil {
-			return nil, err
-		}
-	}
-	sceneByID := map[uint]*models.HtmlScene{}
-	for i := range scenes {
-		sceneByID[scenes[i].ID] = &scenes[i]
-	}
-
-	// 出边：scene → 选项列表（出端口 !Entry 且有配对，目标 = 配对入端口所在场景）
-	outgoing := map[uint][]LinkInfo{}
-	for _, n := range nodes {
-		if n.Entry {
-			continue
-		}
-		var peer models.Node
-		if err := s.db.Where("hash = ? AND id <> ?", n.Hash, n.ID).First(&peer).Error; err != nil {
-			continue // 无配对 = 空端口（导出前检测会拦）
-		}
-		toScene := peer.SceneID
-		if _, ok := sceneByID[toScene]; !ok {
-			continue
-		}
-		kind := n.TargetKind
-		if kind != "html" {
-			kind = "mp4"
-		}
-		outgoing[n.SceneID] = append(outgoing[n.SceneID], LinkInfo{
-			Label:      n.Name,
-			TargetID:   toScene,
-			TargetKind: kind,
-		})
-	}
-
-	// first：优先区块级，其次端口级，最后第一个 scene
-	firstID := uint(0)
-	for _, sc := range scenes {
-		if sc.IsFirst {
-			firstID = sc.ID
-			break
-		}
-	}
-	if firstID == 0 {
-		for _, n := range nodes {
-			if n.IsFirst {
-				firstID = n.SceneID
-				break
-			}
-		}
-	}
-	if firstID == 0 && len(scenes) > 0 {
-		firstID = scenes[0].ID
-	}
-
-	// 末节点（无出边）结局内容：取该节点内第一个填了结局内容的端口
-	sceneEnding := map[uint]string{}
-	for _, n := range nodes {
-		if n.EndingContent == "" || len(outgoing[n.SceneID]) > 0 {
-			continue
-		}
-		if _, ok := sceneEnding[n.SceneID]; !ok {
-			sceneEnding[n.SceneID] = n.EndingContent
-		}
-	}
-
-	// 逐节点复制资源
-	result := &ExportResult{OutputDir: outDir}
-	res := map[uint]*SceneRes{}
-	for _, sc := range scenes {
-		canvas, ok := canvasByID[sc.CanvasID]
-		if !ok {
-			continue
-		}
-		prefix := fmt.Sprintf("%d-%s", sc.ID, sanitizeFileName(sceneStem(sc.Name)))
-		r := &SceneRes{Name: sc.Name}
-		// HTML（可选）：<文件夹>/<stem>.html
-		if src, err := os.ReadFile(sceneHTMLPath(canvas.Path, sc.Name)); err == nil && len(src) > 0 {
-			htmlName := prefix + ".html"
-			if err := os.WriteFile(filepath.Join(distDir, htmlName), src, 0o644); err != nil {
-				return nil, fmt.Errorf("写入 HTML 失败 %s: %w", htmlName, err)
-			}
-			r.HTML = htmlName
-			result.Files = append(result.Files, htmlName)
-		}
-		// MP4（可多个）：scene.Video 优先，其余按文件顺序
-		dir := sceneDir(canvas.Path, sc.Name)
-		mp4s := []string{}
-		if sc.Video != "" {
-			if _, err := os.Stat(filepath.Join(dir, sc.Video)); err == nil {
-				mp4s = append(mp4s, sc.Video)
-			}
-		}
-		if entries, err := os.ReadDir(dir); err == nil {
-			for _, e := range entries {
-				if e.IsDir() || filepath.Ext(e.Name()) != ".mp4" || e.Name() == sc.Video {
-					continue
-				}
-				mp4s = append(mp4s, e.Name())
-			}
-		}
-		for i, mp4 := range mp4s {
-			dstName := prefix + ".mp4"
-			if i > 0 {
-				dstName = fmt.Sprintf("%s-%d.mp4", prefix, i+1)
-			}
-			if err := s.copyVideoForWeb(filepath.Join(dir, mp4), filepath.Join(distDir, dstName)); err != nil {
-				return nil, fmt.Errorf("写入视频失败 %s: %w", dstName, err)
-			}
-			r.MP4s = append(r.MP4s, dstName)
-			result.Files = append(result.Files, dstName)
-		}
-		r.Options = outgoing[sc.ID]
-		r.Ending = sceneEnding[sc.ID]
-		res[sc.ID] = r
-	}
-
-	// 导出前检测：空端口 / 跳转资源缺失
-	var issues []string
-	for _, n := range nodes {
-		scName := sceneByID[n.SceneID].Name
-		var peer models.Node
-		hasPeer := s.db.Where("hash = ? AND id <> ?", n.Hash, n.ID).First(&peer).Error == nil
-		if !hasPeer {
-			issues = append(issues, fmt.Sprintf("节点「%s」的端口「%s」是空端口（没有配对的端口）", scName, n.Name))
-			continue
-		}
-		if n.Entry {
-			continue // 入端口无需资源检测
-		}
-		kind := n.TargetKind
-		if kind != "html" {
-			kind = "mp4"
-		}
-		if tr, ok2 := res[peer.SceneID]; ok2 {
-			missing := (kind == "mp4" && len(tr.MP4s) == 0) || (kind == "html" && tr.HTML == "")
-			if missing {
-				kindLabel := "MP4 视频"
-				if kind == "html" {
-					kindLabel = "HTML 页面"
-				}
-				issues = append(issues, fmt.Sprintf(
-					"节点「%s」的端口「%s」跳转到「%s」，但目标文件夹里没有 %s", scName, n.Name, tr.Name, kindLabel))
-			}
-		}
 	}
 	if len(issues) > 0 {
-		return nil, fmt.Errorf("导出检测失败：\n- %s", strings.Join(issues, "\n- "))
+		messages := []string{}
+		for _, i := range issues {
+			messages = append(messages, i.SceneName+"："+i.Problem)
+		}
+		return nil, fmt.Errorf("导出检测失败：\n%s", strings.Join(messages, "\n"))
 	}
-
+	var canvas models.Canvas
+	if err := s.db.First(&canvas, canvasID).Error; err != nil {
+		return nil, err
+	}
+	scenes, ports, err := graph(s.db, canvasID)
+	if err != nil {
+		return nil, err
+	}
+	outDir, err := os.MkdirTemp(s.settings.GetOutputDir(), time.Now().Format("20060102-150405")+"-")
+	if err != nil {
+		return nil, err
+	}
+	distDir := filepath.Join(outDir, "dist")
+	if err := os.MkdirAll(distDir, 0755); err != nil {
+		return nil, err
+	}
+	result := &ExportResult{OutputDir: outDir}
+	res := map[uint]*SceneRes{}
+	byHash := map[string]uint{}
+	firstID := uint(0)
+	for _, sc := range scenes {
+		byHash[sc.Hash] = sc.ID
+		if sc.IsFirst {
+			firstID = sc.ID
+		}
+	}
+	for _, sc := range scenes {
+		r := &SceneRes{Name: sc.Name, Hash: sc.Hash, Options: []LinkInfo{}, MP4s: []string{}}
+		prefix := sc.Hash
+		if hasFile(htmlPath(canvas, sc)) {
+			name := prefix + ".html"
+			if err := copyFile(htmlPath(canvas, sc), filepath.Join(distDir, name)); err != nil {
+				return nil, err
+			}
+			r.HTML = name
+			result.Files = append(result.Files, name)
+		}
+		for i, mp4 := range videoFiles(canvas, sc) {
+			name := fmt.Sprintf("%s-%d.mp4", prefix, i+1)
+			if err := s.copyVideoForWeb(filepath.Join(assetDir(canvas, sc), mp4), filepath.Join(distDir, name)); err != nil {
+				return nil, err
+			}
+			r.MP4s = append(r.MP4s, name)
+			result.Files = append(result.Files, name)
+		}
+		for _, p := range ports {
+			if p.SceneID == sc.ID {
+				r.Options = append(r.Options, LinkInfo{Label: p.Name, TargetID: byHash[p.ExportHash], TargetKind: p.TargetKind, ShowOption: p.ShowOption})
+			}
+			if p.ExportHash == sc.Hash && p.EndingContent != "" {
+				r.Ending = p.EndingContent
+			}
+		}
+		res[sc.ID] = r
+	}
 	if err := s.writePlayerIndex(outDir, firstID, res); err != nil {
 		return nil, err
 	}
@@ -297,6 +190,20 @@ body{background:#000;font-family:'Microsoft YaHei',sans-serif;overflow:hidden}
 var DATA = JSON.parse(document.getElementById('story-data').textContent);
 var FIRST = %d;
 var cur = null;
+var currentKind = 'auto';
+var started = false;
+var byHash = {};
+Object.keys(DATA).forEach(function(id){ byHash[DATA[id].hash] = id; });
+function route(){
+  var parts = location.hash.replace(/^#\/node\//, '').split('?');
+  return {id: byHash[parts[0]] || FIRST, kind: new URLSearchParams(parts[1] || '').get('kind') || 'auto'};
+}
+function navigate(id, kind){
+  var sc = DATA[String(id)]; if(!sc){ return; }
+  history.pushState(null, '', '#/node/' + sc.hash + '?kind=' + encodeURIComponent(kind || 'auto'));
+  show(id, kind);
+}
+window.addEventListener('hashchange', function(){ if(started){ var r=route(); show(r.id,r.kind); } });
 
 var stage = document.getElementById('stage');
 var video = document.getElementById('video');
@@ -331,6 +238,7 @@ function hideAll(){
 // 展示当前节点：kind=mp4 播视频（无视频自动降级页面）；kind=html 加载页面
 function show(id, kind){
   cur = id;
+  currentKind = kind;
   var sc = DATA[String(id)];
   if(!sc){ return; }
   hideAll();
@@ -346,7 +254,10 @@ function playVideo(src){
   video.src = 'dist/' + src;
   video.play().catch(function(){});
   video.onended = afterContent;
-  video.onerror = afterContent;
+  video.onerror = function(){
+    hideAll(); endingText.textContent = '视频无法播放，请检查文件或视频编码。';
+    ending.style.display = 'flex'; restartBtn.style.display = 'block';
+  };
 }
 
 function showPage(src){
@@ -357,15 +268,19 @@ function showPage(src){
 }
 
 function afterContent(){
+  nextBtn.style.display = 'none';
   var sc = DATA[String(cur)];
   if(!sc){ return; }
+  if(sc.options && sc.options.length === 1 && !sc.options[0].showOption){
+    navigate(sc.options[0].target, sc.options[0].kind); return;
+  }
   if(sc.options && sc.options.length > 0){
     optsBox.innerHTML = '';
     sc.options.forEach(function(o){
       var btn = document.createElement('button');
       btn.className = 'opt';
       btn.textContent = o.label;
-      btn.onclick = function(){ show(o.target, o.kind); };
+      btn.onclick = function(){ navigate(o.target, o.kind); };
       optsBox.appendChild(btn);
     });
     optsBox.style.display = 'flex';
@@ -376,10 +291,13 @@ function afterContent(){
 }
 
 nextBtn.addEventListener('click', afterContent);
-restartBtn.addEventListener('click', function(){ show(FIRST, 'auto'); });
+restartBtn.addEventListener('click', function(){ navigate(FIRST, 'auto'); });
 document.getElementById('start').addEventListener('click', function(){
   document.getElementById('start-wrap').style.display = 'none';
-  show(FIRST, 'auto');
+  started = true;
+  var r=route();
+  history.replaceState(null,'','#/node/'+DATA[String(r.id)].hash+'?kind='+encodeURIComponent(r.kind));
+  show(r.id,r.kind);
 });
 </script>
 </body>

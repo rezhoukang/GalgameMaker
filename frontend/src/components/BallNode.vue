@@ -59,6 +59,7 @@ onMounted(() => document.addEventListener('mousedown', closeMenu))
 onUnmounted(() => document.removeEventListener('mousedown', closeMenu))
 
 function onClick() {
+  if (store.busy) return
   if (isAdd.value && props.addSceneId != null) {
     store.addNextNode(props.addSceneId)
     return
@@ -70,18 +71,23 @@ function onClick() {
 <template>
   <div
     class="ball"
+    role="button"
+    tabindex="0"
+    :aria-label="isAdd ? '新增分支' : (node?.entry ? '入端口：' : '出端口：') + node?.name"
     :class="[side, { add: isAdd }]"
     :style="{ left: pos.left + 'px', top: pos.top + 'px' }"
     :title="isAdd ? '左键：新增出端口 + 下一跳节点 · 右键：新增魔法端口' : '点击编辑端口（改名 / 魔法连接 / 结局内容）'"
     @mousedown.stop.prevent
     @click.stop="onClick"
+    @keydown.enter.stop.prevent="onClick"
+    @keydown.space.stop.prevent="onClick"
     @contextmenu.stop.prevent="onCtx"
   >
     <span v-if="isAdd" class="add-plus">
       <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" /></svg>
     </span>
     <span v-else class="dot" :class="{ magic: isMagic }" :style="dotStyle" />
-    <span v-if="node" class="name" :class="side">{{ node.name }}</span>
+    <span v-if="node" class="name" :class="side">{{ node.name }}{{ !node.showOption ? ' · 自动' : '' }}</span>
   </div>
 
   <!-- 右键菜单（加号球）：新增魔法端口 -->

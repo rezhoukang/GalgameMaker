@@ -29,6 +29,11 @@ export interface Canvas {
 
 // HTML 框：制作者做好的一个 HTML，位于画布上，内含多个节点
 export interface HtmlScene {
+  level: number
+  portNum: number
+  isRoot: boolean
+  assetDir: string
+  htmlFile: string
   id: number
   canvasId: number
   hash: string // 节点哈希（全局唯一，魔法跳跃用）
@@ -44,15 +49,15 @@ export interface HtmlScene {
 }
 
 // 节点（端口）：属于某个 HTML 框，坐标相对框内。
-// 一对「出端口 + 入端口」共用同一个哈希（hash），两个端口哈希相同即相连（无独立连线表）。
+// 后端仅返回出端口；前端按 exportHash 生成负 ID 的入端口。
 export interface NodeItem {
+  exportHash: string
+  showOption: boolean
+  sortOrder: number
   id: number
-  hash: string // 配对端口共用（成对唯一）
+  hash: string // 出端口标识；生成的入端口沿用此标识
   name: string
   sceneId: number
-  x: number // 框内相对坐标
-  y: number
-  first: boolean // 是否「开始」节点（全局唯一）
   targetKind: string // 出端口跳转类型：mp4 / html
   endingContent: string // 结局内容（末节点播完黑屏居中显示）
   entry: boolean // 是否入端口（true=左侧接收端；false=右侧出端口）
@@ -61,6 +66,8 @@ export interface NodeItem {
 
 // 画布完整视图
 export interface CanvasView {
+  canvasId: number
+  token: string
   scenes: HtmlScene[]
   nodes: NodeItem[]
 }

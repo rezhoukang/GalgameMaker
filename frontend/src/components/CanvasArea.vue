@@ -19,6 +19,7 @@ const store = useCanvasStore()
 const app = useAppStore()
 
 const viewportRef = ref<HTMLDivElement | null>(null)
+const spaceDown = ref(false)
 
 // 屏幕坐标 → 画布世界坐标（无界坐标系）
 function screenToWorld(clientX: number, clientY: number) {
@@ -34,14 +35,16 @@ provide('toWorld', (x: number, y: number) => screenToWorld(x, y))
 
 // ---------- 视图：平移（Ctrl 拖拽）/ 缩放（Ctrl 滚轮） ----------
 function onViewDown(e: MouseEvent) {
-  if (e.button !== 0) return // 右键放行（浏览器右键菜单/手势）
-  if (e.ctrlKey) {
+  if (e.button !== 0 && e.button !== 1) return
+  if (e.ctrlKey || spaceDown.value || e.button === 1 || e.target === viewportRef.value) {
     store.beginPan(e.clientX, e.clientY)
     e.preventDefault()
   }
 }
 function onWheel(e: WheelEvent) {
-  if (!e.ctrlKey) return
+  if (!e.ctrlKey) {
+    store.view.x -= e.deltaX; store.view.y -= e.deltaY; store.saveCache(); return
+  }
   const rect = viewportRef.value!.getBoundingClientRect()
   const sx = e.clientX - rect.left
   const sy = e.clientY - rect.top
@@ -60,11 +63,34 @@ function onWindowUp() {
   if (!it) return
   if (it.type === 'pan') store.endPan()
 }
+function onKey(e: KeyboardEvent) {
+  const target = e.target as HTMLElement
+  if (target.closest('input,textarea,select,[contenteditable="true"]')) return
+  if (e.key === 'Escape') { store.editingNode = null; store.editingScene = null; return }
+  if (document.querySelector('.modal-mask') || !store.isCanvasView) return
+  const ctrl = e.ctrlKey || e.metaKey
+  if (e.code === 'Space') { spaceDown.value = true; e.preventDefault() }
+  else if (ctrl && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? store.redo() : store.undo() }
+  else if (ctrl && e.key.toLowerCase() === 'y') { e.preventDefault(); store.redo() }
+  else if (ctrl && e.key.toLowerCase() === 'c') { e.preventDefault(); store.copyProperties() }
+  else if (ctrl && e.key.toLowerCase() === 'v') { e.preventDefault(); store.pasteProperties() }
+  else if (e.key === 'Delete' && store.selectedSceneId != null) { e.preventDefault(); store.deleteScene(store.selectedSceneId) }
+  else if (e.key === 'F2' && store.selectedSceneId != null) { e.preventDefault(); store.editingScene = store.selectedSceneId }
+  else if (ctrl && e.key === '0') { e.preventDefault(); fitToContent() }
+}
+function onKeyUp(e: KeyboardEvent) { if (e.code === 'Space') spaceDown.value = false }
+function onBlur() { spaceDown.value = false; store.endPan() }
 onMounted(() => {
+  window.addEventListener('keydown', onKey)
+  window.addEventListener('keyup', onKeyUp)
+  window.addEventListener('blur', onBlur)
   window.addEventListener('mousemove', onWindowMove)
   window.addEventListener('mouseup', onWindowUp)
 })
 onUnmounted(() => {
+  window.removeEventListener('keydown', onKey)
+  window.removeEventListener('keyup', onKeyUp)
+  window.removeEventListener('blur', onBlur)
   window.removeEventListener('mousemove', onWindowMove)
   window.removeEventListener('mouseup', onWindowUp)
 })
@@ -95,11 +121,12 @@ function fitToContent() {
   store.view.zoom = z
   store.view.x = (vw - (maxX - minX) * z) / 2 - minX * z
   store.view.y = (vh - (maxY - minY) * z) / 2 - minY * z
+  store.saveCache()
 }
 // 只在切换画布时适配一次视图；之后的增删/折叠等操作一律不动缩放（缩放由用户 Ctrl 滚轮控制）
 watch(
   () => store.canvasId,
-  () => setTimeout(fitToContent, 0)
+  () => setTimeout(() => { if (store.view.x === 0 && store.view.y === 0 && store.view.zoom === 1) fitToContent() }, 0)
 )
 
 // 思维导图 S 曲线：水平出发、水平进入，中间平滑拐弯（无箭头）
@@ -172,7 +199,7 @@ const worldStyle = computed(() => ({
   transform: `translate(${store.view.x}px, ${store.view.y}px) scale(${store.view.zoom})`
 }))
 
-const hintText = 'Ctrl 拖拽平移 · Ctrl 滚轮缩放'
+const hintText = '拖动空白平移 · Ctrl 滚轮缩放'
 </script>
 
 <template>
@@ -184,7 +211,14 @@ const hintText = 'Ctrl 拖拽平移 · Ctrl 滚轮缩放'
           <AppIcon name="file" :size="15" />
           {{ store.canvasName }}
         </span>
-        <span class="hint">{{ hintText }}</span>
+        <div class="tools">
+          <button class="btn" :disabled="!store.canUndo" title="撤回 Ctrl+Z（当前工程最近 50 步，刷新后保留）" @click="store.undo()">撤回</button>
+          <button class="btn" :disabled="!store.canRedo" title="重做 Ctrl+Shift+Z" @click="store.redo()">重做</button>
+          <button class="btn" :disabled="store.selectedSceneId == null || store.busy" title="复制节点内容属性 Ctrl+C" @click="store.copyProperties()">复制属性</button>
+          <button class="btn" :disabled="store.selectedSceneId == null || !store.clipboard || store.clipboard.snapshot.canvasId !== store.canvasId || store.busy" title="粘贴节点内容属性 Ctrl+V" @click="store.pasteProperties()">粘贴属性</button>
+          <button class="btn" title="适应画布 Ctrl+0" @click="fitToContent">适应</button>
+        </div>
+        <span class="hint gesture-hint">{{ store.busy ? '正在保存…' : hintText }}</span>
         <div class="spacer" />
         <span class="zoom">{{ Math.round(store.view.zoom * 100) }}%</span>
       </template>
@@ -234,6 +268,10 @@ const hintText = 'Ctrl 拖拽平移 · Ctrl 滚轮缩放'
 </template>
 
 <style scoped>
+.tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+@media (max-width: 1300px) { .gesture-hint { display: none; } }
+
 .canvas-area {
   flex: 1;
   display: flex;
@@ -244,7 +282,8 @@ const hintText = 'Ctrl 拖拽平移 · Ctrl 滚轮缩放'
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
+  flex-wrap: wrap;
   padding: 10px 16px;
   background: var(--bg-soft);
   border-bottom: 1px solid var(--border);

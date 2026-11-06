@@ -55,9 +55,8 @@ func (s *TreeService) GetTree() ([]TreeFolder, error) {
 	}
 	var rows []canvasRow
 	if err := s.db.Model(&models.Canvas{}).
-		Select("canvas.id, canvas.folder_id, canvas.name, COUNT(nodes.id) AS node_count").
+		Select("canvas.id, canvas.folder_id, canvas.name, COUNT(DISTINCT html_scenes.id) AS node_count").
 		Joins("LEFT JOIN html_scenes ON html_scenes.canvas_id = canvas.id").
-		Joins("LEFT JOIN nodes ON nodes.scene_id = html_scenes.id").
 		Group("canvas.id").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -82,38 +81,14 @@ func (s *TreeService) GetTree() ([]TreeFolder, error) {
 // CanvasView 打开画布时返回的完整视图：HTML 框 + 端口。
 // 连接关系不再有独立连线表：一对「出端口 + 入端口」共用同一哈希，哈希相同即相连。
 type CanvasView struct {
-	Scenes []models.HtmlScene `json:"scenes"`
-	Nodes  []models.Node      `json:"nodes"`
+	CanvasID uint               `json:"canvasId"`
+	Scenes   []models.HtmlScene `json:"scenes"`
+	Nodes    []models.Node      `json:"nodes"`
+	Token    string             `json:"token"`
 }
 
-// GetCanvasView 返回某画布下的全部 HTML 框、节点与连线。
 func (s *TreeService) GetCanvasView(canvasID uint) (*CanvasView, error) {
-	var scenes []models.HtmlScene
-	if err := s.db.Where("canvas_id = ?", canvasID).Order("created_at ASC").Find(&scenes).Error; err != nil {
-		return nil, err
-	}
-	// 兼容旧数据：没有哈希的节点补一个（幂等）
-	for i := range scenes {
-		if scenes[i].Hash == "" {
-			scenes[i].Hash = NewHash()
-			_ = s.db.Model(&scenes[i]).Update("hash", scenes[i].Hash).Error
-		}
-	}
-	var sceneIDs []uint
-	for _, sc := range scenes {
-		sceneIDs = append(sceneIDs, sc.ID)
-	}
-
-	var nodes []models.Node
-	if len(sceneIDs) > 0 {
-		if err := s.db.Where("scene_id IN ?", sceneIDs).Order("created_at ASC").Find(&nodes).Error; err != nil {
-			return nil, err
-		}
-	} else {
-		nodes = []models.Node{}
-	}
-
-	return &CanvasView{Scenes: scenes, Nodes: nodes}, nil
+	return readView(s.db, canvasID)
 }
 
 // ---------------------------------------------------------------- 创建
@@ -124,8 +99,8 @@ func (s *TreeService) CreateFolder(parentID *uint, name string) (*models.Folder,
 		return nil, err
 	}
 	name = sanitizeFileName(strings.TrimSpace(name))
-	if name == "" {
-		return nil, errors.New("名称不能为空")
+	if name == "" || name == "." || name == ".." {
+		return nil, errors.New("名称无效")
 	}
 	base := s.settings.GetStoragePath()
 
@@ -139,6 +114,9 @@ func (s *TreeService) CreateFolder(parentID *uint, name string) (*models.Folder,
 	}
 
 	dir := filepath.Join(targetDir, name)
+	if _, err := os.Stat(dir); err == nil {
+		return nil, errors.New("同名文件夹已存在")
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("创建文件夹失败: %w", err)
 	}
@@ -195,8 +173,8 @@ func (s *TreeService) CreateCanvas(folderID uint, name string) (*models.Canvas, 
 // RenameItem 重命名（folder / canvas）。
 func (s *TreeService) RenameItem(kind string, id uint, newName string) error {
 	newName = sanitizeFileName(strings.TrimSpace(newName))
-	if newName == "" {
-		return errors.New("名称不能为空")
+	if newName == "" || newName == "." || newName == ".." {
+		return errors.New("名称无效")
 	}
 
 	switch kind {
@@ -238,17 +216,29 @@ func (s *TreeService) RenameItem(kind string, id uint, newName string) error {
 
 // shiftCanvasPaths 文件夹重命名后，把其下所有画布路径前缀整体替换。
 func (s *TreeService) shiftCanvasPaths(tx *gorm.DB, oldPrefix, newPrefix string) error {
+	var folders []models.Folder
+	if err := tx.Find(&folders).Error; err != nil {
+		return err
+	}
+	for _, f := range folders {
+		rel, err := filepath.Rel(oldPrefix, f.Path)
+		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			continue
+		}
+		if err := tx.Model(&models.Folder{}).Where("id = ?", f.ID).Update("path", filepath.Join(newPrefix, rel)).Error; err != nil {
+			return err
+		}
+	}
 	var canvases []models.Canvas
-	if err := tx.Where("path LIKE ?", oldPrefix+string(os.PathSeparator)+"%").Find(&canvases).Error; err != nil {
+	if err := tx.Find(&canvases).Error; err != nil {
 		return err
 	}
 	for _, c := range canvases {
 		rel, err := filepath.Rel(oldPrefix, c.Path)
-		if err != nil {
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			continue
 		}
-		if err := tx.Model(&models.Canvas{}).Where("id = ?", c.ID).
-			Update("path", filepath.Join(newPrefix, rel)).Error; err != nil {
+		if err := tx.Model(&models.Canvas{}).Where("id = ?", c.ID).Update("path", filepath.Join(newPrefix, rel)).Error; err != nil {
 			return err
 		}
 	}
@@ -353,7 +343,7 @@ func (s *TreeService) deleteCanvasData(tx *gorm.DB, canvasID uint) error {
 // ResetAll 初始化：清空数据库、清空存储目录，再创建默认结构。
 func (s *TreeService) ResetAll() error {
 	if err := s.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec("DELETE FROM nodes").Error; err != nil {
+		if err := tx.Exec("DELETE FROM ports").Error; err != nil {
 			return err
 		}
 		if err := tx.Exec("DELETE FROM html_scenes").Error; err != nil {

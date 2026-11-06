@@ -27,10 +27,23 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	ready := false
+	defer func() {
+		if !ready {
+			if conn, err := db.DB(); err == nil {
+				_ = conn.Close()
+			}
+		}
+	}()
+
+	// Rename before AutoMigrate so the signing key and migration markers are preserved.
+	if err := migrateConfig(db); err != nil {
+		return nil, err
+	}
 
 	// 自动建表
 	if err := db.AutoMigrate(
-		&models.Setting{},
+		&models.Config{},
 		&models.Folder{},
 		&models.Canvas{},
 		&models.HtmlScene{},
@@ -39,15 +52,17 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// 旧版连线表已废弃（端口配对改为「哈希相同即相连」），若残留则清空
-	db.Exec("DROP TABLE IF EXISTS connections")
-
-	// 旧版端口哈希是全局唯一索引；新版改为「配对端口共用同一哈希」，需移除唯一约束
-	db.Exec("DROP INDEX IF EXISTS idx_nodes_hash")
+	if err := migratePorts(db); err != nil {
+		return nil, err
+	}
+	if err := removeLegacyPortColumns(db); err != nil {
+		return nil, err
+	}
 
 	// SQLite 开启外键约束
 	db.Exec("PRAGMA foreign_keys = ON")
 
 	log.Println("数据库初始化完成:", cfg.DBPath)
+	ready = true
 	return db, nil
 }

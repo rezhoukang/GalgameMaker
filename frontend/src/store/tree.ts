@@ -124,7 +124,7 @@ export const useTreeStore = defineStore('tree', {
 
     async doDelete() {
       const m = this.menu
-      if (!m) return
+      if (!m || useCanvasStore().busy) return
       const app = useAppStore()
       const kindName = m.kind === 'folder' ? '文件夹' : '画布'
       const tip =

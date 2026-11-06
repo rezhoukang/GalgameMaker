@@ -45,7 +45,7 @@ const addPos = computed(() => ({
 
 // 节点分支色：跟随入端口（父节点分支色）；根节点用默认蓝
 const entry = computed(() =>
-  store.nodes.find((n) => n.sceneId === props.scene.id && store.nodeIsEntry(n.id))
+  store.nodes.find((n) => n.sceneId === props.scene.id && !n.magic && store.nodeIsEntry(n.id))
 )
 const accent = computed(() =>
   entry.value ? store.nodeColorById(entry.value.id) : '#5b8def'
@@ -80,6 +80,7 @@ function onSelect() {
 }
 
 function onEdit() {
+  store.selectScene(props.scene.id)
   store.editingScene = props.scene.id
 }
 
@@ -120,7 +121,8 @@ async function commitName() {
     <div class="mm-stripe" :style="{ background: accent, borderRadius: NODE_RADIUS + 'px 0 0 ' + NODE_RADIUS + 'px' }" />
 
     <!-- 标题行 -->
-    <div class="mm-title" @click.stop="onSelect">
+    <div class="mm-title" @click.stop="onSelect" :title="`层级 ${scene.level} · 出端口 ${scene.portNum} 个${scene.isRoot ? ' · 根节点不可删除' : ''}`">
+      <span v-if="scene.isRoot" class="root-label">根</span>
       <span v-if="scene.first" class="first-badge" title="开始节点：导出后从它开始播放">
         <svg viewBox="0 0 16 16" width="10" height="10" fill="currentColor"><path d="M4 2 L14 8 L4 14 Z" /></svg>
       </span>
@@ -159,6 +161,7 @@ async function commitName() {
 </template>
 
 <style scoped>
+.root-label { font-size: 10px; color: var(--accent); flex: none; }
 /* 思维导图节点：圆角卡片，无左右端口列区域、无方框化装饰 */
 .mm-node {
   position: absolute;
