@@ -190,6 +190,11 @@ async function commitName() {
 </template>
 
 <style scoped>
+.port-group, .fold-btn {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .port-group {
   position: absolute;
   transform: translate(-50%, -50%);
