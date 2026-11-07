@@ -66,7 +66,7 @@ function nodePos(node: PortItem) {
 async function copyHash() {
   try {
     await navigator.clipboard.writeText(props.scene.hash || '')
-    app.notify(`节点哈希已复制：${props.scene.hash || '—'}`, 'success')
+    app.notify('复制哈希成功', 'success')
   } catch {
     app.notify('复制失败', 'error')
   }
@@ -156,7 +156,7 @@ async function commitName() {
       @mousedown.stop.prevent
       @click.stop="onToggleFold"
     >
-      <span class="fold-symbol" aria-hidden="true">{{ isFolded ? '+' : '−' }}</span>
+      <span class="fold-symbol" aria-hidden="true">{{ isFolded ? '→' : '←' }}</span>
     </button>
 
     <!-- 右侧端口容器：加号球 = 当作下一个出端口（与出端口同逻辑），点击新增出端口+下一跳 -->
