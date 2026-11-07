@@ -31,8 +31,8 @@ const isFolded = computed(() => store.isCollapsed(props.scene.id))
 const outCol = computed(() =>
   store.nodes.filter((n) => n.nodeId === props.scene.id && !store.nodeIsEntry(n.id))
 )
-// 数量表示收起后隐藏的更深层节点；直接子节点始终保留。
-const foldCount = computed(() => store.treeVisibility.foldCounts.get(props.scene.id) ?? 0)
+// 仅在存在可隐藏的更深层节点时显示按钮；直接子节点始终保留。
+const canFold = computed(() => (store.treeVisibility.foldCounts.get(props.scene.id) ?? 0) > 0)
 const addBtnTop = computed(() => {
   const n = outCol.value.length
   if (n === 0) return NODE_H / 2 // 无出端口：高度居中
@@ -108,7 +108,7 @@ async function commitName() {
 <template>
   <div
     class="mm-node"
-    :class="{ selected, flash: store.flashSceneId === scene.id, 'has-children': foldCount > 0 }"
+    :class="{ selected, flash: store.flashSceneId === scene.id }"
     :style="{
       left: scene.x + 'px',
       top: scene.y + 'px',
@@ -147,17 +147,16 @@ async function commitName() {
 
     <!-- 仅有更深层普通后代可隐藏时显示折叠/展开按钮 -->
     <button
-      v-if="foldCount > 0"
+      v-if="canFold"
       class="fold-btn"
       :class="{ folded: isFolded }"
-      :title="isFolded ? `展开更深层的 ${foldCount} 个节点` : '收起更深层节点，保留下一层'"
-      :aria-label="isFolded ? `展开更深层的 ${foldCount} 个节点` : '收起更深层节点'"
+      :title="isFolded ? '展开更深层节点' : '收起更深层节点，保留下一层'"
+      :aria-label="isFolded ? '展开更深层节点' : '收起更深层节点'"
       :aria-expanded="!isFolded"
       @mousedown.stop.prevent
       @click.stop="onToggleFold"
     >
       <span class="fold-symbol" aria-hidden="true">{{ isFolded ? '+' : '−' }}</span>
-      <span v-if="isFolded" class="fold-count" aria-hidden="true">{{ foldCount }}</span>
     </button>
 
     <!-- 右侧端口容器：加号球 = 当作下一个出端口（与出端口同逻辑），点击新增出端口+下一跳 -->
@@ -265,18 +264,16 @@ async function commitName() {
   border-color: var(--accent);
   color: var(--accent);
 }
-/* 折叠按钮贴节点右边缘；新增入口仍位于更外侧的端口列。 */
-.mm-node.has-children .mm-title { padding-right: 26px; }
+/* 折叠按钮位于节点右侧外部，与标题和更外侧的端口列分开。 */
 .fold-btn {
   position: absolute;
-  left: 100%;
+  left: calc(100% + 13px);
   top: 50%;
   transform: translate(-50%, -50%);
-  min-width: 22px;
+  width: 22px;
   height: 22px;
-  padding: 0 5px;
-  gap: 2px;
-  border-radius: 11px;
+  padding: 0;
+  border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text-dim);
@@ -294,12 +291,6 @@ async function commitName() {
 }
 .fold-symbol {
   font-size: 16px;
-  line-height: 1;
-}
-.fold-count {
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 /* 右侧端口容器已并入 BallNode（加号球与出端口同逻辑渲染，见 BallNode.add-dot） */

@@ -2,7 +2,7 @@
 // 视觉模型：开源思维导图 —— 圆角节点卡片 + 右侧分支，S 形平滑连线，无左右端口列区域
 
 // ---- 节点卡片 ----
-export const NODE_W = 200 // 节点卡片宽
+export const NODE_W = 240 // 节点卡片宽
 export const NODE_H = 44 // 节点基础高（仅标题行）
 export const NODE_RADIUS = 12 // 节点圆角半径
 
