@@ -2,7 +2,7 @@ package service
 
 import "testing"
 
-func TestScenePortVisibilityBatchAndUndo(t *testing.T) {
+func TestScenePortSettingsBatchAndUndo(t *testing.T) {
 	f := setup(t)
 	child, ordinary := f.child(t, f.root.ID)
 	magic, _, err := f.nodes.CreateMagicPort(f.root.ID, child.Hash)
@@ -11,12 +11,16 @@ func TestScenePortVisibilityBatchAndUndo(t *testing.T) {
 	}
 	before := f.view(t)
 	hidden := false
-	_, err = f.nodes.UpdateScene(f.root.ID, "renamed", PortVisibility{ordinary.ID, &hidden}, PortVisibility{magic.ID, &hidden})
+	ordinaryName, magicName := "  去学校  ", "返回起点"
+	_, err = f.nodes.UpdateScene(f.root.ID, "renamed", PortSettings{ID: ordinary.ID, Name: &ordinaryName, IsShow: &hidden}, PortSettings{ID: magic.ID, Name: &magicName, IsShow: &hidden})
 	if err != nil {
 		t.Fatal(err)
 	}
 	after := f.view(t)
 	for _, p := range after.Nodes {
+		if p.ID == ordinary.ID && p.Name != "去学校" || p.ID == magic.ID && p.Name != magicName {
+			t.Fatal("option name was not saved or trimmed")
+		}
 		if p.IsShow {
 			t.Fatal("batch did not hide all outgoing options")
 		}
@@ -31,17 +35,23 @@ func TestScenePortVisibilityBatchAndUndo(t *testing.T) {
 		if !p.IsShow {
 			t.Fatal("undo did not restore options")
 		}
+		for _, old := range before.Nodes {
+			if p.ID == old.ID && p.Name != old.Name {
+				t.Fatal("undo did not restore option names")
+			}
+		}
 	}
 }
 
-func TestScenePortVisibilityRejectsForeignOrInvalidPortsAtomically(t *testing.T) {
+func TestScenePortSettingsRejectsForeignOrInvalidPortsAtomically(t *testing.T) {
 	f := setup(t)
 	child, own := f.child(t, f.root.ID)
 	_, foreign := f.child(t, child.ID)
 	hidden := false
-	for _, invalid := range []PortVisibility{{foreign.ID, &hidden}, {999999, &hidden}, {own.ID, nil}} {
+	blank := "  "
+	for _, invalid := range []PortSettings{{ID: foreign.ID, IsShow: &hidden}, {ID: 999999, IsShow: &hidden}, {ID: own.ID}, {ID: own.ID, Name: &blank, IsShow: &hidden}} {
 		before := f.view(t)
-		if _, err := f.nodes.UpdateScene(f.root.ID, "must roll back", PortVisibility{own.ID, &hidden}, invalid); err == nil {
+		if _, err := f.nodes.UpdateScene(f.root.ID, "must roll back", PortSettings{ID: own.ID, IsShow: &hidden}, invalid); err == nil {
 			t.Fatal("invalid port update accepted")
 		}
 		if f.view(t).Token != before.Token {
@@ -51,7 +61,7 @@ func TestScenePortVisibilityRejectsForeignOrInvalidPortsAtomically(t *testing.T)
 	if err := f.tree.DeleteItem("canvas", f.canvas.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.nodes.UpdateScene(f.root.ID, "", PortVisibility{own.ID, &hidden}); err == nil {
+	if _, err := f.nodes.UpdateScene(f.root.ID, "", PortSettings{ID: own.ID, IsShow: &hidden}); err == nil {
 		t.Fatal("deleted project accepted port changes")
 	}
 }

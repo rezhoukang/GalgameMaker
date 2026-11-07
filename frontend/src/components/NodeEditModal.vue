@@ -110,7 +110,7 @@ async function del() {
               :disabled="store.busy"
               @click="isShow = !isShow"
             >
-              <AppIcon :name="isShow ? 'eye' : 'close'" :size="18" />
+              <AppIcon :name="isShow ? 'eye' : 'eye-off'" :size="18" />
             </button>
           </div>
         </div>

@@ -283,7 +283,7 @@ export const useCanvasStore = defineStore('canvas', {
     redo() { return this.travel(true) },
     selectScene(id: number) { this.selectedSceneId = id },
     renameScene(id: number, name: string) { return this.edit(() => api.updateScene(id, {name}), '已重命名') },
-    saveSceneProperties(id: number, name: string, ports: { id: number; isShow: boolean }[]) {
+    saveSceneProperties(id: number, name: string, ports: { id: number; name?: string; isShow: boolean }[]) {
       return this.edit(() => api.updateScene(id, {name, ports}), '已保存节点属性')
     },
     async deleteScene(id: number) {

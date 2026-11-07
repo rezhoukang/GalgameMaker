@@ -60,6 +60,9 @@ const icon = computed(() => paths[props.name] || paths.file)
     fill="currentColor"
     aria-hidden="true"
   >
-    <path :d="icon" />
+    <g v-if="name === 'eye-off'" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A11 11 0 0 1 12 5c5 0 9 4 10 7a16 16 0 0 1-3.1 4.1M6.5 6.5A16 16 0 0 0 2 12c1 3 5 7 10 7a12 12 0 0 0 5.5-1.5" />
+    </g>
+    <path v-else :d="icon" />
   </svg>
 </template>

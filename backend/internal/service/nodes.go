@@ -58,13 +58,14 @@ func normalize(tx *gorm.DB, canvasID uint) error {
 	return nil
 }
 
-// PortVisibility 是节点属性中一并保存的出端口显示设置。
-type PortVisibility struct {
-	ID     uint  `json:"id" binding:"required"`
-	IsShow *bool `json:"isShow" binding:"required"`
+// PortSettings 是节点属性中一并保存的出端口选项设置。
+type PortSettings struct {
+	ID     uint    `json:"id" binding:"required"` // 出端口 ID
+	Name   *string `json:"name"`                  // 可选的选项内容，提供时不可为空
+	IsShow *bool   `json:"isShow" binding:"required"`
 }
 
-func (s *NodeService) UpdateScene(id uint, name string, ports ...PortVisibility) (*models.Node, error) {
+func (s *NodeService) UpdateScene(id uint, name string, ports ...PortSettings) (*models.Node, error) {
 	var scene *models.Node
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var err error
@@ -80,7 +81,14 @@ func (s *NodeService) UpdateScene(id uint, name string, ports ...PortVisibility)
 			if err := tx.Where("id = ? AND node_id = ?", change.ID, id).First(&port).Error; err != nil {
 				return errors.New("出端口不存在或不属于当前节点")
 			}
-			if err := tx.Model(&port).Update("is_show", *change.IsShow).Error; err != nil {
+			if change.Name != nil {
+				port.Name = strings.TrimSpace(*change.Name)
+				if port.Name == "" {
+					return errors.New("选项内容不能为空")
+				}
+			}
+			port.IsShow = *change.IsShow
+			if err := tx.Save(&port).Error; err != nil {
 				return err
 			}
 		}

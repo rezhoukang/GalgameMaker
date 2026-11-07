@@ -119,8 +119,8 @@ func (h *Handlers) updateScene(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Name  string                   `json:"name"`
-		Ports []service.PortVisibility `json:"ports" binding:"dive"`
+		Name  string                 `json:"name"`
+		Ports []service.PortSettings `json:"ports" binding:"dive"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		fail(c, http.StatusBadRequest, 400, "请求参数错误")

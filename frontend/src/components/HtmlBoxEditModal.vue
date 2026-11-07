@@ -13,8 +13,10 @@ const app = useAppStore()
 const scene = computed(() => store.sceneById(props.nodeId))
 const outPorts = computed(() => store.nodes.filter(p => p.nodeId === props.nodeId && !p.entry))
 const visibility = ref<Record<number, boolean>>({})
+const optionNames = ref<Record<number, string>>({})
 watch(outPorts, ports => {
   visibility.value = Object.fromEntries(ports.map(p => [p.id, visibility.value[p.id] ?? p.isShow]))
+  optionNames.value = Object.fromEntries(ports.map(p => [p.id, optionNames.value[p.id] ?? p.name]))
 }, { immediate: true })
 const shownCount = computed(() => outPorts.value.filter(p => visibility.value[p.id]).length)
 function setAllVisible(value: boolean) {
@@ -42,8 +44,12 @@ async function save() {
   const sc = scene.value
   if (!sc) return
   const v = name.value.trim()
-  const ports = outPorts.value.filter(p => visibility.value[p.id] !== p.isShow)
-    .map(p => ({ id: p.id, isShow: visibility.value[p.id] }))
+  if (outPorts.value.some(p => !optionNames.value[p.id]?.trim())) {
+    app.notify('选项内容不能为空', 'error')
+    return
+  }
+  const ports = outPorts.value.filter(p => visibility.value[p.id] !== p.isShow || optionNames.value[p.id].trim() !== p.name)
+    .map(p => ({ id: p.id, name: optionNames.value[p.id].trim(), isShow: visibility.value[p.id] }))
   if ((v && v !== stripExt(sc.name)) || ports.length) {
     if (!await store.saveSceneProperties(sc.id, v && v !== stripExt(sc.name) ? v : sc.name, ports)) return
   }
@@ -147,19 +153,20 @@ async function del() {
             <div v-for="(port, index) in outPorts" :key="port.id" class="port-row" :class="{ 'option-hidden': !visibility[port.id] }">
               <span class="port-index">{{ index + 1 }}</span>
               <div class="port-content">
-                <span class="port-option" :title="port.name">{{ port.name }}</span>
+                <input v-model="optionNames[port.id]" class="port-option" :aria-label="`选项 ${index + 1} 内容`"
+                  placeholder="选项内容" :disabled="store.busy" @keyup.enter="save" />
                 <span class="port-kind">{{ port.magic ? '魔法出口' : '普通出口' }}</span>
               </div>
               <button type="button" class="visibility-toggle" :class="{ hidden: !visibility[port.id] }"
                 :aria-label="`${visibility[port.id] ? '隐藏' : '显示'}选项 ${index + 1}`"
                 :title="visibility[port.id] ? '隐藏选项' : '显示选项'" :aria-pressed="visibility[port.id]"
                 :disabled="store.busy" @click="visibility[port.id] = !visibility[port.id]">
-                <AppIcon :name="visibility[port.id] ? 'eye' : 'close'" :size="18" />
+                <AppIcon :name="visibility[port.id] ? 'eye' : 'eye-off'" :size="18" />
               </button>
             </div>
             <p v-if="!outPorts.length" class="ports-empty">暂无出端口</p>
           </div>
-          <p class="ports-tip">眼睛表示显示选项，叉号表示隐藏。点击保存生效。</p>
+          <p class="ports-tip">可编辑选项内容；带斜杠的眼睛表示隐藏。点击保存生效。</p>
         </section>
       </div>
 
@@ -189,7 +196,7 @@ async function del() {
 .port-row:last-child { border-bottom: 0; }
 .port-index { width: 20px; flex: none; font-size: 12px; color: var(--text-dim); text-align: center; }
 .port-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.port-option { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.port-content .port-option { width: 100%; min-width: 0; font-size: 13px; line-height: 1.5; padding: 5px 8px; }
 .option-hidden .port-option { color: var(--text-dim); }
 .visibility-toggle { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--text-dim); }
 .visibility-toggle:hover, .visibility-toggle:focus-visible { background: var(--accent-soft); color: var(--accent); }
