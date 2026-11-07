@@ -4,10 +4,10 @@ import { useCanvasStore } from '@/store/canvas'
 import { useAppStore } from '@/store/app'
 import BallNode from './BallNode.vue'
 import AppIcon from './AppIcon.vue'
-import type { Scene, PortItem } from '@/types'
+import type { Node, PortItem } from '@/types'
 import { BALL_R, NODE_H, NODE_RADIUS, NODE_W, PORT_OFFSET, PORT_ROW_H } from '@/canvasLayout'
 
-const props = defineProps<{ scene: Scene }>()
+const props = defineProps<{ scene: Node }>()
 
 const store = useCanvasStore()
 const app = useAppStore()

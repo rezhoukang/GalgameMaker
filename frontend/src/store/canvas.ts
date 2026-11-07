@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { api } from '@/api/client'
 import { useAppStore } from './app'
 import { useTreeStore } from './tree'
-import type { Scene, PortItem, CanvasView } from '@/types'
+import type { Node, PortItem, CanvasView } from '@/types'
 import {
   MAGIC_COLOR,
   MIND_COLORS,
@@ -29,7 +29,7 @@ function clamp(v: number, min: number, max: number) {
 }
 
 /** 节点卡片宽（固定，思维导图不提供拉伸） */
-function sceneWidth(scene: Scene): number {
+function sceneWidth(scene: Node): number {
   return scene.width > 0 ? scene.width : NODE_W
 }
 
@@ -68,7 +68,7 @@ export const useCanvasStore = defineStore('canvas', {
 
     canvasId: null as number | null,
     canvasName: '',
-    scenes: [] as Scene[],
+    scenes: [] as Node[],
     nodes: [] as PortItem[],
     selectedSceneId: null as number | null,
     view: { x: 0, y: 0, zoom: 1 } as ViewState,

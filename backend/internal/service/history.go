@@ -109,7 +109,7 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 				return err
 			}
 		}
-		if err := tx.Where("canvas_id = ?", canvasID).Delete(&models.Scene{}).Error; err != nil {
+		if err := tx.Where("canvas_id = ?", canvasID).Delete(&models.Node{}).Error; err != nil {
 			return err
 		}
 		if err := tx.Create(&want.Scenes).Error; err != nil {

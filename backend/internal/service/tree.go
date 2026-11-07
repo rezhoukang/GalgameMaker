@@ -55,8 +55,8 @@ func (s *TreeService) GetTree() ([]TreeFolder, error) {
 	}
 	var rows []canvasRow
 	if err := s.db.Model(&models.Canvas{}).
-		Select("canvas.id, canvas.folder_id, canvas.name, COUNT(DISTINCT scenes.id) AS node_count").
-		Joins("LEFT JOIN scenes ON scenes.canvas_id = canvas.id").
+		Select("canvas.id, canvas.folder_id, canvas.name, COUNT(DISTINCT nodes.id) AS node_count").
+		Joins("LEFT JOIN nodes ON nodes.canvas_id = canvas.id").
 		Group("canvas.id").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -81,10 +81,10 @@ func (s *TreeService) GetTree() ([]TreeFolder, error) {
 // CanvasView 打开画布时返回的完整视图：HTML 框 + 端口。
 // 连接关系不再有独立连线表：一对「出端口 + 入端口」共用同一哈希，哈希相同即相连。
 type CanvasView struct {
-	CanvasID uint           `json:"canvasId"`
-	Scenes   []models.Scene `json:"scenes"`
-	Nodes    []models.Port  `json:"nodes"`
-	Token    string         `json:"token"`
+	CanvasID uint          `json:"canvasId"`
+	Scenes   []models.Node `json:"scenes"`
+	Nodes    []models.Port `json:"nodes"`
+	Token    string        `json:"token"`
 }
 
 func (s *TreeService) GetCanvasView(canvasID uint) (*CanvasView, error) {
@@ -339,7 +339,7 @@ func (s *TreeService) ResetAll() error {
 		if err := tx.Exec("DELETE FROM ports").Error; err != nil {
 			return err
 		}
-		if err := tx.Exec("DELETE FROM scenes").Error; err != nil {
+		if err := tx.Exec("DELETE FROM nodes").Error; err != nil {
 			return err
 		}
 		if err := tx.Exec("DELETE FROM canvas").Error; err != nil {

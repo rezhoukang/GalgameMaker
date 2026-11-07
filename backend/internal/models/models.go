@@ -35,8 +35,8 @@ type Canvas struct {
 	CreatedAt time.Time      `json:"createdAt"`
 }
 
-// Scene is a story node. Media references use a stable directory independent of its name.
-type Scene struct {
+// Node is a story node. Media references use a stable directory independent of its name.
+type Node struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	CanvasID  uint      `json:"canvasId"`
 	Hash      string    `gorm:"uniqueIndex;size:16;not null" json:"hash"` // 节点哈希（全局唯一）

@@ -4,9 +4,9 @@ import "fmt"
 
 // ValidateGraph validates the ordinary tree; magic edges never affect depth or ownership.
 // It also derives levels and counts, so these values cannot drift from the connections.
-func ValidateGraph(scenes []Scene, ports []Port) error {
-	byID, byHash := map[uint]*Scene{}, map[string]*Scene{}
-	var root *Scene
+func ValidateGraph(scenes []Node, ports []Port) error {
+	byID, byHash := map[uint]*Node{}, map[string]*Node{}
+	var root *Node
 	for i := range scenes {
 		s := &scenes[i]
 		if s.Hash == "" || s.Name == "" || byID[s.ID] != nil || byHash[s.Hash] != nil {
