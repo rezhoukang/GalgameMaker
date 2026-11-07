@@ -150,11 +150,15 @@ async function commitName() {
       v-if="hasChildren"
       class="fold-btn"
       :class="{ folded: isFolded }"
-      :title="isFolded ? '展开子树' : '收起子树'"
+      :title="isFolded ? '展开子节点' : '收起子节点（含后代）'"
+      :aria-label="isFolded ? '展开子节点' : '收起子节点'"
+      :aria-expanded="!isFolded"
       @mousedown.stop.prevent
       @click.stop="onToggleFold"
     >
-      <span class="bracket">{{ isFolded ? '❯' : '❮' }}</span>
+      <svg class="fold-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
+        <path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
     </button>
 
     <!-- 右侧端口容器：加号球 = 当作下一个出端口（与出端口同逻辑），点击新增出端口+下一跳 -->
@@ -286,11 +290,13 @@ async function commitName() {
   border-color: var(--accent);
   color: var(--accent);
 }
-.fold-btn .bracket {
-  font-size: 13px;
-  line-height: 1;
-  font-weight: 700;
-  transform: translateY(-1px);
+.fold-chevron {
+  flex: none;
+  transform: rotate(90deg);
+  transition: transform 0.15s;
+}
+.fold-btn.folded .fold-chevron {
+  transform: rotate(0deg);
 }
 /* 右侧端口容器已并入 BallNode（加号球与出端口同逻辑渲染，见 BallNode.add-dot） */
 </style>
