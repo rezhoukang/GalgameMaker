@@ -31,8 +31,11 @@ const isFolded = computed(() => store.isCollapsed(props.scene.id))
 const outCol = computed(() =>
   store.nodes.filter((n) => n.nodeId === props.scene.id && !store.nodeIsEntry(n.id))
 )
-// 仅在存在可隐藏的更深层节点时显示按钮；直接子节点始终保留。
-const canFold = computed(() => (store.treeVisibility.foldCounts.get(props.scene.id) ?? 0) > 0)
+const compactPorts = computed(() => store.treeVisibility.compactIds.has(props.scene.id) && outCol.value.length > 0)
+const displayedPorts = computed(() => store.nodes.filter(n => n.nodeId === props.scene.id && (!compactPorts.value || n.entry)))
+// 被父节点收起的末层由数字端口控制展开，避免无效的折叠按钮。
+const canFold = computed(() => (store.treeVisibility.foldCounts.get(props.scene.id) ?? 0) > 0 &&
+  (!compactPorts.value || store.treeVisibility.foldOwners.get(props.scene.id) === props.scene.id))
 const addBtnTop = computed(() => {
   const n = outCol.value.length
   if (n === 0) return NODE_H / 2 // 无出端口：高度居中
@@ -169,10 +172,19 @@ async function commitName() {
     </button>
 
     <!-- 右侧端口容器：加号球 = 当作下一个出端口（与出端口同逻辑），点击新增出端口+下一跳 -->
-    <BallNode :add-scene-id="scene.id" :pos="addPos" />
+    <button
+      v-if="compactPorts"
+      class="port-group"
+      :style="{ left: NODE_W + PORT_OFFSET + 'px', top: NODE_H / 2 + 'px' }"
+      :title="`${outCol.length} 个出口，点击展开`"
+      :aria-label="`展开 ${outCol.length} 个出口`"
+      @mousedown.stop.prevent
+      @click.stop="store.expandPortGroup(scene.id)"
+    >{{ outCol.length }}</button>
+    <BallNode v-else :add-scene-id="scene.id" :pos="addPos" />
 
     <!-- 入/出端口球：节点直接子级，绝对定位基准与连线锚点（ballWorld）一致 -->
-    <BallNode v-for="ball in store.nodes.filter((n) => n.nodeId === scene.id)" :key="ball.id" :node="ball" :pos="nodePos(ball)" />
+    <BallNode v-for="ball in displayedPorts" :key="ball.id" :node="ball" :pos="nodePos(ball)" />
   </div>
   <Teleport to="body">
     <div v-if="copiedHash !== null" class="modal-mask" @click.self="copiedHash = null" @keydown.esc.stop.prevent="copiedHash = null">
@@ -190,6 +202,27 @@ async function commitName() {
 </template>
 
 <style scoped>
+.port-group {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--branch-color);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--branch-color);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  z-index: 8;
+}
+.port-group:hover, .port-group:focus-visible { background: var(--accent-soft); outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .copy-success { width: min(360px, calc(100vw - 32px)); text-align: center; }
 .copy-success-icon { color: var(--success); margin-bottom: 12px; }
 .copy-success h3 { justify-content: center; margin-bottom: 12px; }

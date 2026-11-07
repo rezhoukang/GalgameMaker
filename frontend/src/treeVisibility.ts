@@ -38,13 +38,19 @@ export function treeVisibility(
 
   const collapsed = new Set(collapsedIds)
   const visibleIds = new Set<number>()
-  const queue = scenes.filter(s => !hasParent.has(s.id)).map(s => ({ id: s.id, stop: false }))
+  const compactIds = new Set<number>()
+  const foldOwners = new Map<number, number>()
+  const queue = scenes.filter(s => !hasParent.has(s.id)).map(s => ({ id: s.id, owner: null as number | null }))
   for (let i = 0; i < queue.length; i++) {
-    const { id, stop } = queue[i]
+    const { id, owner } = queue[i]
     if (visibleIds.has(id)) continue
     visibleIds.add(id)
-    if (stop) continue
-    for (const child of children.get(id) || []) queue.push({ id: child, stop: collapsed.has(id) })
+    if (owner != null || collapsed.has(id)) {
+      compactIds.add(id)
+      foldOwners.set(id, owner ?? id)
+    }
+    if (owner != null) continue
+    for (const child of children.get(id) || []) queue.push({ id: child, owner: collapsed.has(id) ? id : null })
   }
-  return { visibleIds, foldCounts }
+  return { visibleIds, foldCounts, compactIds, foldOwners }
 }

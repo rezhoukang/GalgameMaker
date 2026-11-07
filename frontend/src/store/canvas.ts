@@ -146,16 +146,21 @@ export const useCanvasStore = defineStore('canvas', {
     },
 
     /** 端口在画布上的世界坐标：入端口贴节点左边缘、出端口贴右边缘，以固定行距散开（卡片高度不变） */
-    ballWorld: (s) => (node: PortItem) => {
-      const scene = s.scenes.find((sc) => sc.id === node.nodeId)
-      if (!scene) return { x: 0, y: 0 }
-      const mine = s.nodes.filter((n) => n.nodeId === scene.id)
-      const isEntry = node.entry
-      const col = isEntry ? mine.filter((n) => n.entry) : mine.filter((n) => !n.entry)
-      const idx = Math.max(0, col.findIndex((n) => n.id === node.id))
-      const x = isEntry ? scene.x - PORT_OFFSET : scene.x + NODE_W + PORT_OFFSET
-      const y = scene.y + NODE_H / 2 + (idx - (col.length - 1) / 2) * PORT_ROW_H // 以卡片中心发散
-      return { x, y }
+    ballWorld(): (node: PortItem) => { x: number; y: number } {
+      const s = this
+      return (node: PortItem) => {
+        const scene = s.scenes.find((sc) => sc.id === node.nodeId)
+        if (!scene) return { x: 0, y: 0 }
+        const mine = s.nodes.filter((n) => n.nodeId === scene.id)
+        const isEntry = node.entry
+        const col = isEntry ? mine.filter((n) => n.entry) : mine.filter((n) => !n.entry)
+        const compact = !isEntry && s.treeVisibility.compactIds.has(scene.id)
+        const idx = compact ? 0 : Math.max(0, col.findIndex((n) => n.id === node.id))
+        const count = compact ? 1 : col.length
+        const x = isEntry ? scene.x - PORT_OFFSET : scene.x + NODE_W + PORT_OFFSET
+        const y = scene.y + NODE_H / 2 + (idx - (count - 1) / 2) * PORT_ROW_H // 以卡片中心发散
+        return { x, y }
+      }
     }
   },
 
@@ -219,7 +224,8 @@ export const useCanvasStore = defineStore('canvas', {
     },
 
     relayout() {
-      const positions = computeMindLayout(this.scenes, this.nodes, new Set<number>())
+      const { visibleIds, compactIds } = this.treeVisibility
+      const positions = computeMindLayout(this.scenes.filter(s => visibleIds.has(s.id)), this.nodes, compactIds)
       for (const sc of this.scenes) { const p = positions.get(sc.id); if (p) { sc.x = p.x; sc.y = p.y } }
     },
 
@@ -302,6 +308,7 @@ export const useCanvasStore = defineStore('canvas', {
       if (!sc) return
       this.selectedSceneId = nodeId
       this.collapsedSceneIds = []
+      this.relayout()
       this.editingNode = null
       this.editingScene = null
       const cx = sc.x + NODE_W / 2
@@ -380,12 +387,35 @@ export const useCanvasStore = defineStore('canvas', {
       this.saveCache()
     },
 
-    /** 收起时保留当前节点及下一层，只隐藏更深后代；不重排坐标 */
+    /** 重排后保持操作节点在屏幕上的位置，缩放不变。 */
+    relayoutAt(nodeId: number, before: { x: number; y: number } | undefined) {
+      this.relayout()
+      const after = this.sceneById(nodeId)
+      if (before && after) {
+        this.view.x += (before.x - after.x) * this.view.zoom
+        this.view.y += (before.y - after.y) * this.view.zoom
+      }
+      this.saveCache()
+    },
+
+    /** 点击数字端口，展开控制它的收起节点。 */
+    expandPortGroup(nodeId: number) {
+      const owner = this.treeVisibility.foldOwners.get(nodeId)
+      if (owner == null) return
+      const sc = this.sceneById(nodeId)
+      const before = sc ? { x: sc.x, y: sc.y } : undefined
+      this.collapsedSceneIds = this.collapsedSceneIds.filter(id => id !== owner && id !== nodeId)
+      this.relayoutAt(nodeId, before)
+    },
+
+    /** 收起保留下一层，合并端口并按可见内容重新排布。 */
     toggleCollapse(nodeId: number) {
+      const sc = this.sceneById(nodeId)
+      const before = sc ? { x: sc.x, y: sc.y } : undefined
       const i = this.collapsedSceneIds.indexOf(nodeId)
       if (i >= 0) this.collapsedSceneIds.splice(i, 1)
       else this.collapsedSceneIds.push(nodeId)
-      this.saveCache()
+      this.relayoutAt(nodeId, before)
     }
   }
 })

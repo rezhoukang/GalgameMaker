@@ -7,6 +7,16 @@ const ordinary = [[1, 'a'], [1, 'b'], [2, 'a1'], [2, 'a2'], [4, 'a11'], [3, 'b1'
 const ports = ordinary.map(([nodeId, exportHash]) => ({ nodeId, exportHash, entry: false, magic: false }))
 const visible = ids => [...treeVisibility(scenes, ports, ids).visibleIds]
 
+test('collapsed nodes and their retained children share an expandable port group owner', () => {
+  const folded = treeVisibility(scenes, ports, [1, 2])
+  assert.deepEqual([...folded.compactIds], [1, 2, 3])
+  assert.deepEqual([...folded.foldOwners], [[1, 1], [2, 1], [3, 1]])
+  const branch = treeVisibility(scenes, ports, [2])
+  assert.deepEqual([...branch.compactIds], [2, 4, 5])
+  assert.deepEqual([...branch.foldOwners], [[2, 2], [4, 2], [5, 2]])
+  assert.equal(treeVisibility(scenes, ports, []).compactIds.size, 0)
+})
+
 test('root collapse retains the next level, hiding deeper descendants', () => {
   assert.deepEqual(visible([1]), [1, 2, 3])
   const { foldCounts } = treeVisibility(scenes, ports, [1])
