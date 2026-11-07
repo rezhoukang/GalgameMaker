@@ -74,11 +74,12 @@ export const useCanvasStore = defineStore('canvas', {
     editingNode: null as PortItem | null,
     editingScene: null as number | null,
     flashSceneId: null as number | null,
-    collapsedSceneIds: [] as number[]
+    collapsedSceneIds: [] as number[],
+    compactSceneIds: [] as number[]
   }),
 
   getters: {
-    treeVisibility: (s) => treeVisibility(s.scenes, s.nodes, s.collapsedSceneIds),
+    treeVisibility: (s) => treeVisibility(s.scenes, s.nodes, s.collapsedSceneIds, s.compactSceneIds),
     canUndo: (s) => !s.busy && s.past.length > 0,
     canRedo: (s) => !s.busy && s.future.length > 0,
     nodeById: (s) => (id: number) => s.nodes.find((n) => n.id === id),
@@ -88,8 +89,7 @@ export const useCanvasStore = defineStore('canvas', {
     nodeColorById: (s) => (nodeId: number) => portColor(s.nodes, nodeId),
     isCanvasView: (s) => s.canvasId != null,
 
-    /** 节点是否已折叠子树 */
-    isCollapsed: (s) => (nodeId: number) => s.collapsedSceneIds.includes(nodeId),
+    foldState: (s) => (nodeId: number) => s.collapsedSceneIds.includes(nodeId) ? 'collapsed' : s.compactSceneIds.includes(nodeId) ? 'compact' : 'expanded',
 
     /** 节点卡片渲染高度：固定 NODE_H（布局占位见 mindLayout.sceneDisplayHeight） */
     sceneHeight: (s) => (_sceneId: number) => NODE_H,
@@ -171,6 +171,7 @@ export const useCanvasStore = defineStore('canvas', {
       this.snapshot = null; this.past = []; this.future = []
       this.selectedSceneId = null; this.editingNode = null; this.editingScene = null
       this.collapsedSceneIds = []; this.interaction = null; this.view = { x: 0, y: 0, zoom: 1 }
+      this.compactSceneIds = []
     },
 
     applySnapshot(view: CanvasView) {
@@ -184,6 +185,7 @@ export const useCanvasStore = defineStore('canvas', {
       })
       if (this.selectedSceneId != null && !this.sceneById(this.selectedSceneId)) this.selectedSceneId = null
       this.collapsedSceneIds = this.collapsedSceneIds.filter(id => this.sceneById(id))
+      this.compactSceneIds = this.compactSceneIds.filter(id => this.sceneById(id))
       this.relayout()
     },
 
@@ -192,7 +194,7 @@ export const useCanvasStore = defineStore('canvas', {
       try {
         localStorage.setItem(`galgame-history-v1-${this.canvasId}`, JSON.stringify({
           token: this.snapshot.token, past: this.past, future: this.future,
-          view: this.view, collapsed: this.collapsedSceneIds
+          view: this.view, collapsed: this.collapsedSceneIds, compact: this.compactSceneIds
         }))
       } catch {
         if (!this.cacheWarning) { this.cacheWarning = true; useAppStore().notify('本地缓存空间不足，本次撤回仍可用，刷新后历史可能丢失', 'error') }
@@ -207,6 +209,7 @@ export const useCanvasStore = defineStore('canvas', {
         const view = await api.getCanvas(id)
         this.canvasId = id; this.canvasName = name
         this.past = []; this.future = []; this.collapsedSceneIds = []
+        this.compactSceneIds = []
         this.editingNode = null; this.editingScene = null; this.selectedSceneId = null
         this.view = { x: 0, y: 0, zoom: 1 }
         try {
@@ -216,6 +219,7 @@ export const useCanvasStore = defineStore('canvas', {
             if (Array.isArray(cache.future)) this.future = cache.future.slice(-50)
             if (cache.view && [cache.view.x, cache.view.y, cache.view.zoom].every(Number.isFinite)) this.view = {...cache.view, zoom: clamp(cache.view.zoom, ZOOM_MIN, ZOOM_MAX)}
             if (Array.isArray(cache.collapsed)) this.collapsedSceneIds = cache.collapsed
+            if (Array.isArray(cache.compact)) this.compactSceneIds = cache.compact
           }
         } catch { /* Ignore malformed browser cache; server data remains authoritative. */ }
         this.applySnapshot(view)
@@ -308,6 +312,7 @@ export const useCanvasStore = defineStore('canvas', {
       if (!sc) return
       this.selectedSceneId = nodeId
       this.collapsedSceneIds = []
+      this.compactSceneIds = []
       this.relayout()
       this.editingNode = null
       this.editingScene = null
@@ -398,23 +403,15 @@ export const useCanvasStore = defineStore('canvas', {
       this.saveCache()
     },
 
-    /** 点击数字端口，展开控制它的收起节点。 */
-    expandPortGroup(nodeId: number) {
-      const owner = this.treeVisibility.foldOwners.get(nodeId)
-      if (owner == null) return
-      const sc = this.sceneById(nodeId)
-      const before = sc ? { x: sc.x, y: sc.y } : undefined
-      this.collapsedSceneIds = this.collapsedSceneIds.filter(id => id !== owner && id !== nodeId)
-      this.relayoutAt(nodeId, before)
-    },
-
-    /** 收起保留下一层，合并端口并按可见内容重新排布。 */
+    /** 展开 → 紧凑（减号）→ 收起 → 展开；每次按可见内容重排。 */
     toggleCollapse(nodeId: number) {
       const sc = this.sceneById(nodeId)
       const before = sc ? { x: sc.x, y: sc.y } : undefined
-      const i = this.collapsedSceneIds.indexOf(nodeId)
-      if (i >= 0) this.collapsedSceneIds.splice(i, 1)
-      else this.collapsedSceneIds.push(nodeId)
+      const state = this.foldState(nodeId)
+      this.collapsedSceneIds = this.collapsedSceneIds.filter(id => id !== nodeId)
+      this.compactSceneIds = this.compactSceneIds.filter(id => id !== nodeId)
+      if (state === 'expanded') this.compactSceneIds.push(nodeId)
+      else if (state === 'compact') this.collapsedSceneIds.push(nodeId)
       this.relayoutAt(nodeId, before)
     }
   }

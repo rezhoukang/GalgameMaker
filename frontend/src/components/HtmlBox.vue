@@ -25,15 +25,20 @@ function stripExt(n: string): string {
 
 const height = computed(() => store.sceneHeight(props.scene.id))
 const selected = computed(() => store.selectedSceneId === props.scene.id)
-const isFolded = computed(() => store.isCollapsed(props.scene.id))
+const foldState = computed(() => store.foldState(props.scene.id))
+const foldLabel = computed(() => ({
+  expanded: '全部展开：点击切换为紧凑，只显示下一层',
+  compact: '紧凑：点击收起全部子节点',
+  collapsed: '已收起：点击展开子节点'
+})[foldState.value])
 
 // 出端口列：加号按钮放在即将新增出的那个端口位置（最后一个出端口下一行；无端口时在卡片中心）
 const outCol = computed(() =>
   store.nodes.filter((n) => n.nodeId === props.scene.id && !store.nodeIsEntry(n.id))
 )
-const compactPorts = computed(() => store.treeVisibility.compactIds.has(props.scene.id) && outCol.value.length > 0)
+const compactPorts = computed(() => store.treeVisibility.compactIds.has(props.scene.id))
 const displayedPorts = computed(() => store.nodes.filter(n => n.nodeId === props.scene.id && (!compactPorts.value || n.entry)))
-// 被父节点收起的末层由数字端口控制展开，避免无效的折叠按钮。
+// 被父节点紧凑显示的末层跟随父节点，不提供无效的独立切换按钮。
 const canFold = computed(() => (store.treeVisibility.foldCounts.get(props.scene.id) ?? 0) > 0 &&
   (!compactPorts.value || store.treeVisibility.foldOwners.get(props.scene.id) === props.scene.id))
 const addBtnTop = computed(() => {
@@ -155,32 +160,33 @@ async function commitName() {
       </button>
     </div>
 
-    <!-- 仅有更深层普通后代可隐藏时显示折叠/展开按钮 -->
+    <!-- 有普通子节点时提供三态切换，数字端口仅展示数量。 -->
     <button
       v-if="canFold"
       class="fold-btn"
-      :class="{ folded: isFolded }"
-      :title="isFolded ? '展开更深层节点' : '收起更深层节点，保留下一层'"
-      :aria-label="isFolded ? '展开更深层节点' : '收起更深层节点'"
-      :aria-expanded="!isFolded"
+      :class="{ folded: foldState === 'collapsed', compact: foldState === 'compact' }"
+      :title="foldLabel"
+      :aria-label="foldLabel"
+      :aria-expanded="foldState !== 'collapsed'"
       @mousedown.stop.prevent
       @click.stop="onToggleFold"
     >
-      <svg class="fold-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
+      <svg v-if="foldState === 'compact'" viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
+        <path d="M4 8h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      <svg v-else class="fold-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
         <path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </button>
 
     <!-- 右侧端口容器：加号球 = 当作下一个出端口（与出端口同逻辑），点击新增出端口+下一跳 -->
-    <button
+    <span
       v-if="compactPorts"
       class="port-group"
       :style="{ left: NODE_W + PORT_OFFSET + 'px', top: NODE_H / 2 + 'px' }"
-      :title="`${outCol.length} 个出口，点击展开`"
-      :aria-label="`展开 ${outCol.length} 个出口`"
-      @mousedown.stop.prevent
-      @click.stop="store.expandPortGroup(scene.id)"
-    >{{ outCol.length }}</button>
+      :title="`${outCol.length} 个出口`"
+      :aria-label="`${outCol.length} 个出口`"
+    >{{ outCol.length }}</span>
     <BallNode v-else :add-scene-id="scene.id" :pos="addPos" />
 
     <!-- 入/出端口球：节点直接子级，绝对定位基准与连线锚点（ballWorld）一致 -->
@@ -218,10 +224,9 @@ async function commitName() {
   font-size: 11px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  cursor: pointer;
+  cursor: default;
   z-index: 8;
 }
-.port-group:hover, .port-group:focus-visible { background: var(--accent-soft); outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .copy-success { width: min(360px, calc(100vw - 32px)); text-align: center; }
 .copy-success-icon { color: var(--success); margin-bottom: 12px; }

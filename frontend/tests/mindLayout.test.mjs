@@ -14,8 +14,8 @@ function connect(from, to) {
 for (const child of [2, 3, 4]) connect(1, child)
 for (let child = 5; child <= 21; child++) connect(3, child)
 
-function layout(collapsed) {
-  const { visibleIds, compactIds } = treeVisibility(scenes, ports, collapsed)
+function layout(compact, collapsed = []) {
+  const { visibleIds, compactIds } = treeVisibility(scenes, ports, collapsed, compact)
   return computeMindLayout(scenes.filter(s => visibleIds.has(s.id)), ports, compactIds)
 }
 
@@ -46,4 +46,13 @@ test('expanded card centers remain aligned despite tall outgoing port columns', 
 test('compaction preserves the space required by incoming ports', () => {
   const inputs = Array.from({ length: 8 }, () => ({ nodeId: 3, entry: true, magic: true }))
   assert.ok(sceneDisplayHeight(3, [...ports, ...inputs], true) > NODE_H)
+})
+
+
+test('fully collapsed layout occupies only the current node, then restores the compact layer', () => {
+  const compact = layout([1])
+  const collapsed = layout([], [1])
+  assert.equal(collapsed.size, 1)
+  assert.equal(collapsed.get(1).y + NODE_H / 2, ROOT_Y)
+  assert.deepEqual(layout([1]), compact)
 })

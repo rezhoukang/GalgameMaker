@@ -1,10 +1,11 @@
 import type { Node, PortItem } from './types'
 
-// 收起保留当前节点及直接子节点，仅隐藏孙节点及更深后代。
+// 三态：展开全部；紧凑保留下一层；收起隐藏全部后代。
 export function treeVisibility(
   scenes: Pick<Node, 'id' | 'hash'>[],
   ports: Pick<PortItem, 'nodeId' | 'exportHash' | 'entry' | 'magic'>[],
-  collapsedIds: readonly number[]
+  collapsedIds: readonly number[],
+  compactNodeIds: readonly number[] = []
 ) {
   const byHash = new Map(scenes.map(s => [s.hash, s.id]))
   const children = new Map(scenes.map(s => [s.id, new Set<number>()]))
@@ -32,11 +33,12 @@ export function treeVisibility(
   const foldCounts = new Map<number, number>()
   for (const scene of scenes) {
     let count = 0
-    for (const child of children.get(scene.id) || []) count += Math.max(0, subtreeSize(child) - 1)
+    for (const child of children.get(scene.id) || []) count += subtreeSize(child)
     foldCounts.set(scene.id, count)
   }
 
   const collapsed = new Set(collapsedIds)
+  const compact = new Set(compactNodeIds)
   const visibleIds = new Set<number>()
   const compactIds = new Set<number>()
   const foldOwners = new Map<number, number>()
@@ -45,12 +47,12 @@ export function treeVisibility(
     const { id, owner } = queue[i]
     if (visibleIds.has(id)) continue
     visibleIds.add(id)
-    if (owner != null || collapsed.has(id)) {
+    if (owner != null || collapsed.has(id) || compact.has(id)) {
       compactIds.add(id)
       foldOwners.set(id, owner ?? id)
     }
-    if (owner != null) continue
-    for (const child of children.get(id) || []) queue.push({ id: child, owner: collapsed.has(id) ? id : null })
+    if (owner != null || collapsed.has(id)) continue
+    for (const child of children.get(id) || []) queue.push({ id: child, owner: compact.has(id) ? id : null })
   }
   return { visibleIds, foldCounts, compactIds, foldOwners }
 }
