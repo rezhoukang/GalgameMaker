@@ -9,6 +9,20 @@ const app = useAppStore()
 const tree = useTreeStore()
 const canvas = useCanvasStore()
 
+const shortcuts = [
+  { label: '撤回', keys: 'Ctrl + Z' },
+  { label: '重做（恢复撤回）', keys: 'Ctrl + Shift + Z / Ctrl + Y' },
+  { label: '复制节点内容属性', keys: 'Ctrl + C' },
+  { label: '粘贴节点内容属性', keys: 'Ctrl + V' },
+  { label: '适应画布', keys: 'Ctrl + 0' },
+  { label: '编辑选中节点', keys: 'F2' },
+  { label: '删除选中节点', keys: 'Delete' },
+  { label: '关闭属性窗口', keys: 'Esc' },
+  { label: '平移画布', keys: '空格 + 拖动 / 中键拖动' },
+  { label: '平移画布', keys: '拖动空白 / Ctrl + 拖动' },
+  { label: '缩放画布', keys: '鼠标滚轮' }
+]
+
 async function onReset() {
   if (!confirm('确定初始化？\n将清空数据库与存储目录中的全部数据，不可恢复！')) return
   try {
@@ -55,6 +69,19 @@ async function onExport() {
       </span>
     </div>
     <div class="spacer" />
+    <div class="shortcut-help">
+      <button type="button" class="icon-btn help-btn" aria-label="快捷键帮助" aria-describedby="shortcut-guide">?</button>
+      <div id="shortcut-guide" class="shortcut-guide" role="tooltip">
+        <h2>快捷键与画布操作</h2>
+        <dl>
+          <div v-for="item in shortcuts" :key="item.keys" class="shortcut-row">
+            <dt>{{ item.label }}</dt>
+            <dd><kbd>{{ item.keys }}</kbd></dd>
+          </div>
+        </dl>
+        <p>复制、粘贴前先选中节点；输入框内保留文字编辑快捷键。</p>
+      </div>
+    </div>
     <button class="icon-btn" :title="app.dark ? '切换白天模式' : '切换黑夜模式'" @click="app.toggleDark()">
       <AppIcon :name="app.dark ? 'sun' : 'moon'" />
     </button>
@@ -70,6 +97,19 @@ async function onExport() {
 </template>
 
 <style scoped>
+.shortcut-help { position: relative; flex: none; padding: 10px 0; margin: -10px 0; z-index: 100; }
+.help-btn { font-size: 18px; font-weight: 600; }
+.shortcut-help .help-btn:hover { transform: none; }
+.help-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.shortcut-guide { display: none; position: absolute; top: 100%; right: 0; width: min(420px, calc(100vw - 32px)); padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); box-shadow: 0 10px 32px rgba(28, 28, 34, 0.14); max-height: calc(100dvh - 68px); overflow-y: auto; }
+.shortcut-help:hover .shortcut-guide, .shortcut-help:has(.help-btn:focus-visible) .shortcut-guide { display: block; }
+.shortcut-guide h2 { margin: 0 0 10px; font-size: 14px; }
+.shortcut-guide dl { margin: 0; }
+.shortcut-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 7px 0; font-size: 12px; }
+.shortcut-row dt { flex: none; color: var(--text-dim); }
+.shortcut-row dd { margin: 0; text-align: right; }
+.shortcut-row kbd { font-family: inherit; font-size: 11px; line-height: 1.6; }
+.shortcut-guide p { border-top: 1px solid var(--border); padding-top: 12px; margin: 10px 0 0; color: var(--text-dim); font-size: 12px; line-height: 1.6; }
 .topbar {
   height: 52px;
   display: flex;

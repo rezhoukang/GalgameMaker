@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
-import { useAppStore } from '@/store/app'
 import HtmlBox from './HtmlBox.vue'
-import AppIcon from './AppIcon.vue'
-import type { Node, PortItem } from '@/types'
+import type { Node } from '@/types'
 import {
   BALL_R,
   CURVE_MIN_BEND,
@@ -16,7 +14,6 @@ import {
 } from '@/canvasLayout'
 
 const store = useCanvasStore()
-const app = useAppStore()
 
 const viewportRef = ref<HTMLDivElement | null>(null)
 const spaceDown = ref(false)
@@ -188,35 +185,10 @@ const worldStyle = computed(() => ({
   transform: `translate(${store.view.x}px, ${store.view.y}px) scale(${store.view.zoom})`
 }))
 
-const hintText = '拖动空白平移 · 滚轮缩放'
 </script>
 
 <template>
   <div class="canvas-area">
-    <!-- 工具栏：仅画布视图使用 -->
-    <div class="toolbar">
-      <template v-if="store.isCanvasView">
-        <span class="crumb">
-          <AppIcon name="file" :size="15" />
-          {{ store.canvasName }}
-        </span>
-        <div class="tools">
-          <button class="btn" :disabled="!store.canUndo" title="撤回 Ctrl+Z（当前工程最近 50 步，刷新后保留）" @click="store.undo()">撤回</button>
-          <button class="btn" :disabled="!store.canRedo" title="重做 Ctrl+Shift+Z" @click="store.redo()">重做</button>
-          <button class="btn" :disabled="store.selectedSceneId == null || store.busy" title="复制节点内容属性 Ctrl+C" @click="store.copyProperties()">复制属性</button>
-          <button class="btn" :disabled="store.selectedSceneId == null || !store.clipboard || store.clipboard.snapshot.projectId !== store.canvasId || store.busy" title="粘贴节点内容属性 Ctrl+V" @click="store.pasteProperties()">粘贴属性</button>
-          <button class="btn" title="适应画布 Ctrl+0" @click="fitToContent">适应</button>
-        </div>
-        <span class="hint gesture-hint">{{ store.busy ? '正在保存…' : hintText }}</span>
-        <div class="spacer" />
-        <span class="zoom">{{ Math.round(store.view.zoom * 100) }}%</span>
-      </template>
-      <template v-else>
-        <span class="hint">在左侧选择一个画布</span>
-        <div class="spacer" />
-      </template>
-    </div>
-
     <!-- 无界画布视口 -->
     <div
       ref="viewportRef"
@@ -260,10 +232,6 @@ const hintText = '拖动空白平移 · 滚轮缩放'
 </template>
 
 <style scoped>
-.tools { display: flex; flex-wrap: wrap; gap: 6px; }
-.btn:disabled { opacity: .4; cursor: not-allowed; }
-@media (max-width: 1300px) { .gesture-hint { display: none; } }
-
 .canvas-area {
   flex: 1;
   display: flex;
@@ -271,62 +239,6 @@ const hintText = '拖动空白平移 · 滚轮缩放'
   height: 100%;
   min-width: 0;
 }
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 10px 16px;
-  background: var(--bg-soft);
-  border-bottom: 1px solid var(--border);
-}
-.crumb {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.hint {
-  font-size: 12px;
-  color: var(--text-faint);
-}
-.btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 13px;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.btn.plus {
-  color: var(--accent);
-  border-color: var(--accent-soft);
-}
-.spacer {
-  flex: 1;
-}
-.zoom {
-  font-size: 12px;
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
 /* 无界画布视口 */
 .viewport {
   flex: 1;
