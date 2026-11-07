@@ -20,6 +20,8 @@ const app = useAppStore()
 
 const viewportRef = ref<HTMLDivElement | null>(null)
 const spaceDown = ref(false)
+// 拖动结束后的 click 仍需拦截，即使用户先松开空格。
+let suppressPanClick = false
 
 // 屏幕坐标 → 画布世界坐标（无界坐标系）
 function screenToWorld(clientX: number, clientY: number) {
@@ -35,11 +37,20 @@ provide('toWorld', (x: number, y: number) => screenToWorld(x, y))
 
 // ---------- 视图：平移（Ctrl 拖拽）/ 缩放（滚轮） ----------
 function onViewDown(e: MouseEvent) {
+  suppressPanClick = false
   if (e.button !== 0 && e.button !== 1) return
   if (e.ctrlKey || spaceDown.value || e.button === 1 || e.target === viewportRef.value) {
+    suppressPanClick = true
     store.beginPan(e.clientX, e.clientY)
     e.preventDefault()
+    e.stopPropagation()
   }
+}
+function onViewAction(e: MouseEvent) {
+  if (!spaceDown.value && !suppressPanClick) return
+  e.preventDefault()
+  e.stopPropagation()
+  if (e.type === 'click') suppressPanClick = false
 }
 function onWheel(e: WheelEvent) {
   if (e.deltaY === 0) return
@@ -67,7 +78,7 @@ function onKey(e: KeyboardEvent) {
   if (e.key === 'Escape') { store.editingNode = null; store.editingScene = null; return }
   if (document.querySelector('.modal-mask') || !store.isCanvasView) return
   const ctrl = e.ctrlKey || e.metaKey
-  if (e.code === 'Space') { spaceDown.value = true; e.preventDefault() }
+  if (e.code === 'Space') { spaceDown.value = true; e.preventDefault(); e.stopPropagation() }
   else if (ctrl && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? store.redo() : store.undo() }
   else if (ctrl && e.key.toLowerCase() === 'y') { e.preventDefault(); store.redo() }
   else if (ctrl && e.key.toLowerCase() === 'c') { e.preventDefault(); store.copyProperties() }
@@ -76,18 +87,23 @@ function onKey(e: KeyboardEvent) {
   else if (e.key === 'F2' && store.selectedSceneId != null) { e.preventDefault(); store.editingScene = store.selectedSceneId }
   else if (ctrl && e.key === '0') { e.preventDefault(); fitToContent() }
 }
-function onKeyUp(e: KeyboardEvent) { if (e.code === 'Space') spaceDown.value = false }
+function onKeyUp(e: KeyboardEvent) {
+  if (e.code !== 'Space' || !spaceDown.value) return
+  e.preventDefault()
+  e.stopPropagation()
+  spaceDown.value = false
+}
 function onBlur() { spaceDown.value = false; store.endPan() }
 onMounted(() => {
-  window.addEventListener('keydown', onKey)
-  window.addEventListener('keyup', onKeyUp)
+  window.addEventListener('keydown', onKey, true)
+  window.addEventListener('keyup', onKeyUp, true)
   window.addEventListener('blur', onBlur)
   window.addEventListener('mousemove', onWindowMove)
   window.addEventListener('mouseup', onWindowUp)
 })
 onUnmounted(() => {
-  window.removeEventListener('keydown', onKey)
-  window.removeEventListener('keyup', onKeyUp)
+  window.removeEventListener('keydown', onKey, true)
+  window.removeEventListener('keyup', onKeyUp, true)
   window.removeEventListener('blur', onBlur)
   window.removeEventListener('mousemove', onWindowMove)
   window.removeEventListener('mouseup', onWindowUp)
@@ -205,8 +221,11 @@ const hintText = '拖动空白平移 · 滚轮缩放'
     <div
       ref="viewportRef"
       class="viewport"
-      :class="{ panning: store.interaction?.type === 'pan' }"
-      @mousedown="onViewDown"
+      :class="{ 'pan-ready': spaceDown, panning: store.interaction?.type === 'pan' }"
+      @mousedown.capture="onViewDown"
+      @click.capture="onViewAction"
+      @dblclick.capture="onViewAction"
+      @contextmenu.capture="onViewAction"
       @wheel.prevent="onWheel"
     >
       <!-- 未选择画布：空白 -->
@@ -317,8 +336,13 @@ const hintText = '拖动空白平移 · 滚轮缩放'
   background-image: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1px);
   background-size: 28px 28px;
 }
-.viewport.panning {
-  cursor: grabbing;
+.viewport.pan-ready, .viewport.pan-ready :deep(*) {
+  cursor: grab !important;
+  user-select: none;
+}
+.viewport.panning, .viewport.panning :deep(*) {
+  cursor: grabbing !important;
+  user-select: none;
 }
 .world {
   position: absolute;
