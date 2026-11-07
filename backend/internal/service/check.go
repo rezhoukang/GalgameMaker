@@ -47,7 +47,7 @@ func (s *NodeService) CheckCanvas(canvasID uint) ([]CanvasIssue, error) {
 		}
 		hidden := 0
 		for _, p := range outs[sc.ID] {
-			if !p.ShowOption {
+			if !p.IsShow {
 				hidden++
 			}
 		}

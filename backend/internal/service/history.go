@@ -117,12 +117,12 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 		}
 		// GORM default:true would turn a restored false value into true on INSERT.
 		for _, p := range want.Nodes {
-			show := p.ShowOption
+			show := p.IsShow
 			if err := tx.Create(&p).Error; err != nil {
 				return err
 			}
 			if !show {
-				if err := tx.Model(&p).Update("show_option", false).Error; err != nil {
+				if err := tx.Model(&p).Update("is_show", false).Error; err != nil {
 					return err
 				}
 			}

@@ -21,7 +21,7 @@ const primary = computed(() => {
 const isPaired = computed(() => !!pairInfo.value)
 
 const name = ref(primary.value.name)
-const showOption = ref(primary.value.showOption)
+const isShow = ref(primary.value.isShow)
 
 watch(
   () => primary.value?.name,
@@ -68,7 +68,7 @@ async function save() {
   const p = primary.value
   const ok = await store.saveNode(p.id, {
     name: name.value.trim() || p.name,
-    showOption: showOption.value
+    isShow: isShow.value
   })
   if (ok) emit('close')
 }
@@ -107,7 +107,7 @@ async function del() {
       </div>
 
       <div class="field">
-        <label><input v-model="showOption" type="checkbox" /> 内容结束后显示此选项</label>
+        <label><input v-model="isShow" type="checkbox" /> 内容结束后显示此选项</label>
         <p class="hint-line">取消勾选表示自动继续；该节点必须恰好有一个出口。</p>
       </div>
 

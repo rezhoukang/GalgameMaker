@@ -15,14 +15,14 @@ func (h *Handlers) updateNode(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Name       string `json:"name"`
-		ShowOption *bool  `json:"showOption"`
+		Name   string `json:"name"`
+		IsShow *bool  `json:"isShow"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		fail(c, http.StatusBadRequest, 400, "请求参数错误")
 		return
 	}
-	node, err := h.nodes.UpdateNode(uint(id), req.Name, req.ShowOption)
+	node, err := h.nodes.UpdateNode(uint(id), req.Name, req.IsShow)
 	if err != nil {
 		fail(c, http.StatusBadRequest, 400, err.Error())
 		return

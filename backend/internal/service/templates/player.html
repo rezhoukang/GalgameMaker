@@ -105,7 +105,7 @@ function afterContent(){
   if(completed){ return; }
   completed = true; nextBtn.style.display = 'none';
   var sc = DATA[String(cur)]; if(!sc){ return; }
-  if(sc.options.length === 1 && !sc.options[0].showOption){ navigate(sc.options[0].target); return; }
+  if(sc.options.length === 1 && !sc.options[0].isShow){ navigate(sc.options[0].target); return; }
   if(sc.options.length){
     optsBox.replaceChildren();
     sc.options.forEach(function(o){

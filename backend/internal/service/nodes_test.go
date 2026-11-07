@@ -156,7 +156,7 @@ func TestHiddenPortRestoreAndSnapshotGuards(t *testing.T) {
 	if _, err := f.nodes.Restore(f.canvas.ID, after.Token, *before); err != nil {
 		t.Fatal(err)
 	}
-	if f.view(t).Nodes[0].ShowOption {
+	if f.view(t).Nodes[0].IsShow {
 		t.Fatal("false was replaced by database default")
 	}
 }
@@ -248,7 +248,7 @@ func TestExportValidationAndRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(page), "#/node/") || !strings.Contains(string(page), `"showOption":false`) {
+	if !strings.Contains(string(page), "#/node/") || !strings.Contains(string(page), `"isShow":false`) {
 		t.Fatal("routes or hidden option absent")
 	}
 	_, q := f.child(t, f.root.ID)

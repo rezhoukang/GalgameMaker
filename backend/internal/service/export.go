@@ -35,9 +35,9 @@ type ExportResult struct {
 
 // LinkInfo 一条跳转链接（出端口选项）。
 type LinkInfo struct {
-	Label      string `json:"label"`
-	TargetID   uint   `json:"target"`
-	ShowOption bool   `json:"showOption"`
+	Label    string `json:"label"`
+	TargetID uint   `json:"target"`
+	IsShow   bool   `json:"isShow"`
 }
 
 // SceneRes 节点导出的资源与选项。
@@ -125,7 +125,7 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 		}
 		for _, p := range ports {
 			if p.NodeID == sc.ID {
-				r.Options = append(r.Options, LinkInfo{Label: p.Name, TargetID: byHash[p.ExportHash], ShowOption: p.ShowOption})
+				r.Options = append(r.Options, LinkInfo{Label: p.Name, TargetID: byHash[p.ExportHash], IsShow: p.IsShow})
 			}
 		}
 		res[sc.ID] = r

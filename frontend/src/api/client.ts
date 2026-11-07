@@ -101,7 +101,7 @@ export const api = {
   // 出端口，入端口只是前端展示
   updateNode: (
     id: number,
-    data: { name?: string; showOption?: boolean }
+    data: { name?: string; isShow?: boolean }
   ) => request<PortItem>(`/api/nodes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteNode: (id: number) => request<void>(`/api/nodes/${id}`, { method: 'DELETE' }),
   // 断开魔法连接；普通连接需移动或删除分支

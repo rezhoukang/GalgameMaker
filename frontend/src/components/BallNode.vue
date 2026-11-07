@@ -90,7 +90,7 @@ function onClick() {
       </span>
     </template>
     <span v-else class="dot" :class="{ magic: isMagic }" :style="dotStyle" />
-    <span v-if="node" class="name" :class="side">{{ node.name }}{{ !node.showOption ? ' · 自动' : '' }}</span>
+    <span v-if="node" class="name" :class="side">{{ node.name }}{{ !node.isShow ? ' · 自动' : '' }}</span>
   </div>
 
   <!-- 右键菜单（加号球）：新增魔法端口 -->

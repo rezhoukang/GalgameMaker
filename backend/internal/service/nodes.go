@@ -144,7 +144,7 @@ func (s *NodeService) DeleteScene(id uint) error {
 		return normalize(tx, sc.CanvasID)
 	})
 }
-func (s *NodeService) UpdateNode(id uint, name string, showOption *bool) (*models.Port, error) {
+func (s *NodeService) UpdateNode(id uint, name string, isShow *bool) (*models.Port, error) {
 	var p models.Port
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if err := activePorts(tx).First(&p, id).Error; err != nil {
@@ -156,8 +156,8 @@ func (s *NodeService) UpdateNode(id uint, name string, showOption *bool) (*model
 				return errors.New("选项内容不能为空")
 			}
 		}
-		if showOption != nil {
-			p.ShowOption = *showOption
+		if isShow != nil {
+			p.IsShow = *isShow
 		}
 		return tx.Save(&p).Error
 	})
@@ -261,7 +261,7 @@ func nextPort(tx *gorm.DB, sc models.Node, target string, magic bool) models.Por
 	tx.Model(&models.Port{}).Where("node_id = ?", sc.ID).Count(&count)
 	var max int
 	tx.Model(&models.Port{}).Where("node_id = ?", sc.ID).Select("COALESCE(MAX(sort_order), 0)").Scan(&max)
-	return models.Port{Hash: NewHash(), Name: fmt.Sprintf("选项 %d", count+1), NodeID: sc.ID, ExportHash: target, Magic: magic, ShowOption: true, SortOrder: max + 1}
+	return models.Port{Hash: NewHash(), Name: fmt.Sprintf("选项 %d", count+1), NodeID: sc.ID, ExportHash: target, Magic: magic, IsShow: true, SortOrder: max + 1}
 }
 func (s *NodeService) CreateNextNode(sceneID uint) (*models.Node, *models.Port, *models.Port, error) {
 	var sc models.Node
