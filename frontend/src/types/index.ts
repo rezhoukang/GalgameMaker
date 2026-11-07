@@ -40,7 +40,6 @@ export interface Node {
   name: string // HTML 文件名
   x: number // 画布坐标
   y: number
-  width: number // 卡片宽度（0 表示用默认）
   video: string // 关联 mp4 文件名（空表示无视频）
   first: boolean // 是否「开始」区块（全局唯一，导出入口）
   outCount: number // 普通出端口数（出边数）

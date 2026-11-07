@@ -69,7 +69,7 @@ export const api = {
     request<{ sceneName: string; nodeName: string; problem: string }[]>(`/api/canvas/${id}/check`),
 
   // HTML 框（节点）
-  updateScene: (id: number, data: { name?: string; x?: number; y?: number; width?: number }) =>
+  updateScene: (id: number, data: { name?: string; x?: number; y?: number }) =>
     request<Node>(`/api/scenes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteScene: (id: number) => request<void>(`/api/scenes/${id}`, { method: 'DELETE' }),
   // 上传 HTML 框关联的 mp4 视频

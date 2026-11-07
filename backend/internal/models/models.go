@@ -43,7 +43,6 @@ type Node struct {
 	Name      string    `gorm:"not null;default:'未命名'" json:"name"`       // 显示名称，与素材目录无关
 	X         float64   `json:"x"`                                        // 画布坐标
 	Y         float64   `json:"y"`
-	Width     float64   `json:"width"`                            // 卡片宽度（0 表示用前端默认）
 	Video     string    `gorm:"not null;default:''" json:"video"` // 关联的 mp4 文件名（空表示无视频）
 	IsFirst   bool      `json:"first"`                            // 是否「开始」区块（工程内唯一，导出入口）
 	OutCount  int       `json:"outCount"`                         // 普通出端口数（出边数）

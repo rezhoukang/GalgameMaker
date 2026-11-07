@@ -29,9 +29,6 @@ function clamp(v: number, min: number, max: number) {
 }
 
 /** 节点卡片宽（固定，思维导图不提供拉伸） */
-function sceneWidth(scene: Node): number {
-  return scene.width > 0 ? scene.width : NODE_W
-}
 
 /** 返回与 nodeId 哈希相同的配对端口（另一端）；没有则返回 null */
 function pairOf(nodes: PortItem[], nodeId: number): PortItem | null {
@@ -154,7 +151,7 @@ export const useCanvasStore = defineStore('canvas', {
       const isEntry = node.entry
       const col = isEntry ? mine.filter((n) => n.entry) : mine.filter((n) => !n.entry)
       const idx = Math.max(0, col.findIndex((n) => n.id === node.id))
-      const x = isEntry ? scene.x - PORT_OFFSET : scene.x + sceneWidth(scene) + PORT_OFFSET
+      const x = isEntry ? scene.x - PORT_OFFSET : scene.x + NODE_W + PORT_OFFSET
       const y = scene.y + NODE_H / 2 + (idx - (col.length - 1) / 2) * PORT_ROW_H // 以卡片中心发散
       return { x, y }
     }
@@ -305,8 +302,7 @@ export const useCanvasStore = defineStore('canvas', {
       this.collapsedSceneIds = []
       this.editingNode = null
       this.editingScene = null
-      const w = sceneWidth(sc)
-      const cx = sc.x + w / 2
+      const cx = sc.x + NODE_W / 2
       const cy = sc.y + this.sceneHeight(sceneId) / 2
       this.view.x = window.innerWidth / 2 - cx * this.view.zoom
       this.view.y = window.innerHeight / 2 - cy * this.view.zoom

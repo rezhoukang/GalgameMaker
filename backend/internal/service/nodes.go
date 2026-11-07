@@ -58,16 +58,16 @@ func normalize(tx *gorm.DB, canvasID uint) error {
 	}
 	return nil
 }
-func (s *NodeService) UpdateScene(id uint, name string, x, y, width float64) (*models.Node, error) {
+func (s *NodeService) UpdateScene(id uint, name string, x, y float64) (*models.Node, error) {
 	var scene *models.Node
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var err error
-		scene, err = NewNodeService(tx).updateScene(id, name, x, y, width)
+		scene, err = NewNodeService(tx).updateScene(id, name, x, y)
 		return err
 	})
 	return scene, err
 }
-func (s *NodeService) updateScene(id uint, name string, x, y, width float64) (*models.Node, error) {
+func (s *NodeService) updateScene(id uint, name string, x, y float64) (*models.Node, error) {
 	var sc models.Node
 	if err := activeScenes(s.db).First(&sc, id).Error; err != nil {
 		return nil, errors.New("节点不存在")
@@ -77,9 +77,6 @@ func (s *NodeService) updateScene(id uint, name string, x, y, width float64) (*m
 		if sc.Name == "" {
 			return nil, errors.New("节点名称不能为空")
 		}
-	}
-	if width > 0 {
-		sc.Width = width
 	}
 	if err := s.db.Save(&sc).Error; err != nil {
 		return nil, err

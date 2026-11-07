@@ -118,16 +118,15 @@ func (h *Handlers) updateScene(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Name  string  `json:"name"`
-		X     float64 `json:"x"`
-		Y     float64 `json:"y"`
-		Width float64 `json:"width"`
+		Name string  `json:"name"`
+		X    float64 `json:"x"`
+		Y    float64 `json:"y"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		fail(c, http.StatusBadRequest, 400, "请求参数错误")
 		return
 	}
-	scene, err := h.nodes.UpdateScene(uint(id), req.Name, req.X, req.Y, req.Width)
+	scene, err := h.nodes.UpdateScene(uint(id), req.Name, req.X, req.Y)
 	if err != nil {
 		fail(c, http.StatusBadRequest, 400, err.Error())
 		return

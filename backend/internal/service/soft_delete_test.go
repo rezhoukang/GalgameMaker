@@ -42,7 +42,7 @@ func TestDeletedCanvasRetainsDataAndRejectsAccess(t *testing.T) {
 			return e
 		},
 		"initial":      func() error { _, e := f.nodes.CreateInitialScene(f.canvas.ID); return e },
-		"scene update": func() error { _, e := f.nodes.UpdateScene(child.ID, "changed", 0, 0, 0); return e },
+		"scene update": func() error { _, e := f.nodes.UpdateScene(child.ID, "changed", 0, 0); return e },
 		"scene delete": func() error { return f.nodes.DeleteScene(child.ID) },
 		"port update":  func() error { _, e := f.nodes.UpdateNode(port.ID, "changed", nil, nil, nil); return e },
 		"port delete":  func() error { return f.nodes.DeleteNode(port.ID) },
