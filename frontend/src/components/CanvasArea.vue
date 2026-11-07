@@ -33,7 +33,7 @@ function screenToWorld(clientX: number, clientY: number) {
 }
 provide('toWorld', (x: number, y: number) => screenToWorld(x, y))
 
-// ---------- 视图：平移（Ctrl 拖拽）/ 缩放（Ctrl 滚轮） ----------
+// ---------- 视图：平移（Ctrl 拖拽）/ 缩放（滚轮） ----------
 function onViewDown(e: MouseEvent) {
   if (e.button !== 0 && e.button !== 1) return
   if (e.ctrlKey || spaceDown.value || e.button === 1 || e.target === viewportRef.value) {
@@ -42,9 +42,7 @@ function onViewDown(e: MouseEvent) {
   }
 }
 function onWheel(e: WheelEvent) {
-  if (!e.ctrlKey) {
-    store.view.x -= e.deltaX; store.view.y -= e.deltaY; store.saveCache(); return
-  }
+  if (e.deltaY === 0) return
   const rect = viewportRef.value!.getBoundingClientRect()
   const sx = e.clientX - rect.left
   const sy = e.clientY - rect.top
@@ -123,7 +121,7 @@ function fitToContent() {
   store.view.y = (vh - (maxY - minY) * z) / 2 - minY * z
   store.saveCache()
 }
-// 只在切换画布时适配一次视图；之后的增删/折叠等操作一律不动缩放（缩放由用户 Ctrl 滚轮控制）
+// 只在切换画布时适配一次视图；之后的增删/折叠等操作一律不动缩放（缩放由用户 滚轮控制）
 watch(
   () => store.canvasId,
   () => setTimeout(() => { if (store.view.x === 0 && store.view.y === 0 && store.view.zoom === 1) fitToContent() }, 0)
@@ -174,7 +172,7 @@ const worldStyle = computed(() => ({
   transform: `translate(${store.view.x}px, ${store.view.y}px) scale(${store.view.zoom})`
 }))
 
-const hintText = '拖动空白平移 · Ctrl 滚轮缩放'
+const hintText = '拖动空白平移 · 滚轮缩放'
 </script>
 
 <template>
