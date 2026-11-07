@@ -5,11 +5,11 @@ import VueDevTools from 'vite-plugin-vue-devtools'
 
 // ============================================================
 // Vue DevTools 开关
-// - true：开启（默认）
-// - false：关闭（插件完全不加载）
+// - true：开启
+// - false：关闭（默认，插件完全不加载）
 // 下方保留「生产自动关」保护：构建生产包时不注入 DevTools
 // ============================================================
-const DEVTOOLS_ENABLED = true
+const DEVTOOLS_ENABLED = false
 
 const enableDevTools =
   DEVTOOLS_ENABLED && process.env.NODE_ENV !== 'production'
