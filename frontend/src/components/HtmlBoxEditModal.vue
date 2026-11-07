@@ -155,7 +155,7 @@ async function del() {
               <div class="port-content">
                 <input v-model="optionNames[port.id]" class="port-option" :aria-label="`选项 ${index + 1} 内容`"
                   placeholder="选项内容" :disabled="store.busy" @keyup.enter="save" />
-                <span class="port-kind">{{ port.magic ? '魔法出口' : '普通出口' }}</span>
+                <span v-if="port.magic" class="port-kind">魔法</span>
               </div>
               <button type="button" class="visibility-toggle" :class="{ hidden: !visibility[port.id] }"
                 :aria-label="`${visibility[port.id] ? '隐藏' : '显示'}选项 ${index + 1}`"
@@ -166,7 +166,6 @@ async function del() {
             </div>
             <p v-if="!outPorts.length" class="ports-empty">暂无出端口</p>
           </div>
-          <p class="ports-tip">可编辑选项内容；带斜杠的眼睛表示隐藏。点击保存生效。</p>
         </section>
       </div>
 
@@ -188,21 +187,21 @@ async function del() {
 .ports-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 10px; }
 .ports-header h4 { font-size: 14px; margin: 0; }
 .ports-header h4 span { color: var(--text-dim); margin-left: 5px; font-weight: 400; }
-.ports-summary, .ports-tip, .port-kind { color: var(--text-dim); font-size: 12px; }
+.ports-summary, .port-kind { color: var(--text-dim); font-size: 12px; }
 .ports-actions { display: flex; gap: 8px; padding: 0 16px 12px; border-bottom: 1px solid var(--border); }
 .ports-actions .btn { padding: 5px 10px; font-size: 12px; }
 .ports-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 12px; }
 .port-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--border-light); }
 .port-row:last-child { border-bottom: 0; }
 .port-index { width: 20px; flex: none; font-size: 12px; color: var(--text-dim); text-align: center; }
-.port-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.port-content .port-option { width: 100%; min-width: 0; font-size: 13px; line-height: 1.5; padding: 5px 8px; }
+.port-content { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.port-content .port-option { flex: 1; width: 0; min-width: 0; font-size: 13px; line-height: 1.5; padding: 5px 8px; }
+.port-kind { flex: none; white-space: nowrap; }
 .option-hidden .port-option { color: var(--text-dim); }
 .visibility-toggle { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--text-dim); }
 .visibility-toggle:hover, .visibility-toggle:focus-visible { background: var(--accent-soft); color: var(--accent); }
 .visibility-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .visibility-toggle.hidden { color: var(--text-faint); }
-.ports-tip { padding: 10px 16px; border-top: 1px solid var(--border); line-height: 1.6; margin: 0; }
 .ports-empty { text-align: center; color: var(--text-dim); font-size: 13px; padding: 32px 0; }
 @media (max-width: 700px) { .properties-columns { grid-template-columns: minmax(0, 1fr); gap: 12px; } .ports-panel { height: 300px; } .video-row { flex-wrap: wrap; } }
 .content-tip { font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-top: 8px; }
