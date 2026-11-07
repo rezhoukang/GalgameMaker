@@ -8,7 +8,7 @@ export interface Settings {
 
 // 树结构：文件夹 → 画布
 export interface TreeCanvas {
-  id: number // 工程 ID，对应 canvas.id
+  id: number // 工程 ID，对应 projects.id
   name: string // 工程显示名称
   nodeCount: number // 工程内剧情节点数量，由后端查询统计
 }
@@ -20,24 +20,28 @@ export interface TreeFolder {
   canvases: TreeCanvas[] // 直接属于该文件夹的工程列表
 }
 
-// 画布（树里的「文件」）
-export interface Canvas {
-  id: number // 工程 ID，对应 canvas.id
+// 工程（树里的「文件」），对应 projects 表
+export interface Project {
+  id: number // 工程 ID，对应 projects.id
   folderId: number // 所属文件夹 ID，对应 folders.id
   name: string // 工程显示名称
 }
 
 // 剧情节点，对应数据库 nodes 表，可关联视频或 HTML 内容。
-export interface Node {
+export interface NodeData {
   contentPath: string // 节点内容入口相对于工程目录的路径（当前为 HTML 页面）；空串表示未导入内容
   level: number // 普通树层级，根节点为 1，不计魔法连接
   id: number // 剧情节点 ID，对应 nodes.id
-  canvasId: number // 所属工程 ID，对应 canvas.id
+  projectId: number // 所属工程 ID，对应 projects.id
   hash: string // 节点全局唯一标识，用于连接目标、定位和导出路由
   name: string // 节点显示名称，与素材文件名独立
-  x: number // 节点横坐标，前端自动布局重新计算
-  y: number // 节点纵坐标，前端自动布局重新计算
   first: boolean // 是否为所属工程的播放起点，不是全局唯一
+}
+
+// 仅用于画布渲染的节点；坐标不进入接口、数据库或撤回快照。
+export interface Node extends NodeData {
+  x: number // 前端自动计算的横坐标
+  y: number // 前端自动计算的纵坐标
 }
 
 // 端口视图：后端保存出端口，前端派生入端口。
@@ -56,9 +60,9 @@ export interface PortItem {
 
 // 画布完整视图
 export interface CanvasView {
-  canvasId: number // 当前工程 ID
+  projectId: number // 当前工程 ID
   token: string // 后端生成的快照签名，用于校验撤回内容和拒绝过期覆盖
-  scenes: Node[] // 剧情节点列表，对应 nodes 表
+  scenes: NodeData[] // 剧情节点列表，对应 nodes 表
   nodes: PortItem[] // 出端口列表，对应 ports 表；接口字段名沿用 nodes，入端口由前端派生
 }
 

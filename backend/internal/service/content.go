@@ -19,7 +19,7 @@ var contentBridge string
 
 // Each immutable content version owns its HTML and companion resources.
 // Never export an entire project or follow links outside the content directory.
-func contentFiles(canvas models.Canvas, node models.Node) ([]string, error) {
+func contentFiles(canvas models.Project, node models.Node) ([]string, error) {
 	if node.ContentPath == "" {
 		return nil, fmt.Errorf("请导入视频或 HTML 页面后导出")
 	}

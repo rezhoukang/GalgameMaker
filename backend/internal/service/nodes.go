@@ -16,19 +16,19 @@ type NodeService struct{ db *gorm.DB }
 
 func NewNodeService(db *gorm.DB) *NodeService { return &NodeService{db: db} }
 func sceneStem(name string) string            { return strings.TrimSuffix(name, filepath.Ext(name)) }
-func contentPath(c models.Canvas, s models.Node) string {
+func contentPath(c models.Project, s models.Node) string {
 	if s.ContentPath == "" {
 		return ""
 	}
 	return filepath.Join(c.Path, filepath.FromSlash(s.ContentPath))
 }
 func graph(tx *gorm.DB, canvasID uint) ([]models.Node, []models.Port, error) {
-	var canvas models.Canvas
+	var canvas models.Project
 	if err := tx.First(&canvas, canvasID).Error; err != nil {
 		return nil, nil, err
 	}
 	ss, pp := []models.Node{}, []models.Port{}
-	if err := tx.Where("canvas_id = ?", canvasID).Order("id").Find(&ss).Error; err != nil {
+	if err := tx.Where("project_id = ?", canvasID).Order("id").Find(&ss).Error; err != nil {
 		return nil, nil, err
 	}
 	ids := []uint{}
@@ -57,16 +57,16 @@ func normalize(tx *gorm.DB, canvasID uint) error {
 	}
 	return nil
 }
-func (s *NodeService) UpdateScene(id uint, name string, x, y float64) (*models.Node, error) {
+func (s *NodeService) UpdateScene(id uint, name string) (*models.Node, error) {
 	var scene *models.Node
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var err error
-		scene, err = NewNodeService(tx).updateScene(id, name, x, y)
+		scene, err = NewNodeService(tx).updateScene(id, name)
 		return err
 	})
 	return scene, err
 }
-func (s *NodeService) updateScene(id uint, name string, x, y float64) (*models.Node, error) {
+func (s *NodeService) updateScene(id uint, name string) (*models.Node, error) {
 	var sc models.Node
 	if err := activeScenes(s.db).First(&sc, id).Error; err != nil {
 		return nil, errors.New("节点不存在")
@@ -93,7 +93,7 @@ func (s *NodeService) DeleteScene(id uint) error {
 		if sc.Level == 1 {
 			return errors.New("根节点不可删除")
 		}
-		ss, pp, err := graph(tx, sc.CanvasID)
+		ss, pp, err := graph(tx, sc.ProjectID)
 		if err != nil {
 			return err
 		}
@@ -135,13 +135,13 @@ func (s *NodeService) DeleteScene(id uint) error {
 			return err
 		}
 		var first int64
-		tx.Model(&models.Node{}).Where("canvas_id = ? AND is_first = ?", sc.CanvasID, true).Count(&first)
+		tx.Model(&models.Node{}).Where("project_id = ? AND is_first = ?", sc.ProjectID, true).Count(&first)
 		if first == 0 {
-			if err := tx.Model(&models.Node{}).Where("canvas_id = ? AND level = ?", sc.CanvasID, 1).Update("is_first", true).Error; err != nil {
+			if err := tx.Model(&models.Node{}).Where("project_id = ? AND level = ?", sc.ProjectID, 1).Update("is_first", true).Error; err != nil {
 				return err
 			}
 		}
-		return normalize(tx, sc.CanvasID)
+		return normalize(tx, sc.ProjectID)
 	})
 }
 func (s *NodeService) UpdateNode(id uint, name string, isShow *bool) (*models.Port, error) {
@@ -193,7 +193,7 @@ func (s *NodeService) BreakConnection(id uint) error {
 		if err := tx.Delete(&p).Error; err != nil {
 			return err
 		}
-		return normalize(tx, sc.CanvasID)
+		return normalize(tx, sc.ProjectID)
 	})
 }
 func (s *NodeService) RedirectNode(id uint, hash, side string) error {
@@ -209,7 +209,7 @@ func (s *NodeService) RedirectNode(id uint, hash, side string) error {
 		if err := activeScenes(tx).First(&from, p.NodeID).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("hash = ? AND canvas_id = ?", strings.TrimSpace(hash), from.CanvasID).First(&to).Error; err != nil {
+		if err := tx.Where("hash = ? AND project_id = ?", strings.TrimSpace(hash), from.ProjectID).First(&to).Error; err != nil {
 			return errors.New("目标节点不存在于当前工程")
 		}
 		if side == "prev" {
@@ -222,7 +222,7 @@ func (s *NodeService) RedirectNode(id uint, hash, side string) error {
 		if err := tx.Save(&p).Error; err != nil {
 			return err
 		}
-		return normalize(tx, from.CanvasID)
+		return normalize(tx, from.ProjectID)
 	})
 }
 func (s *NodeService) SetFirstScene(id uint) (*models.Node, error) {
@@ -231,7 +231,7 @@ func (s *NodeService) SetFirstScene(id uint) (*models.Node, error) {
 		if err := activeScenes(tx).First(&sc, id).Error; err != nil {
 			return err
 		}
-		if err := tx.Model(&models.Node{}).Where("canvas_id = ?", sc.CanvasID).Update("is_first", false).Error; err != nil {
+		if err := tx.Model(&models.Node{}).Where("project_id = ?", sc.ProjectID).Update("is_first", false).Error; err != nil {
 			return err
 		}
 		sc.IsFirst = true
@@ -242,19 +242,19 @@ func (s *NodeService) SetFirstScene(id uint) (*models.Node, error) {
 func (s *NodeService) CreateInitialScene(canvasID uint) (*models.Node, error) {
 	var sc *models.Node
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		var canvas models.Canvas
+		var canvas models.Project
 		if err := tx.First(&canvas, canvasID).Error; err != nil {
 			return err
 		}
 		var count int64
-		if err := tx.Model(&models.Node{}).Where("canvas_id = ?", canvasID).Count(&count).Error; err != nil {
+		if err := tx.Model(&models.Node{}).Where("project_id = ?", canvasID).Count(&count).Error; err != nil {
 			return err
 		}
 		if count > 0 {
 			return nil
 		}
 		hash := NewHash()
-		sc = &models.Node{CanvasID: canvasID, Hash: hash, Name: "初始节点", Level: 1, IsFirst: true}
+		sc = &models.Node{ProjectID: canvasID, Hash: hash, Name: "初始节点", Level: 1, IsFirst: true}
 		return tx.Create(sc).Error
 	})
 	return sc, err
@@ -275,7 +275,7 @@ func (s *NodeService) CreateNextNode(sceneID uint) (*models.Node, *models.Port, 
 			return err
 		}
 		hash := NewHash()
-		sc = models.Node{CanvasID: parent.CanvasID, Hash: hash, Name: "新节点", Level: parent.Level + 1}
+		sc = models.Node{ProjectID: parent.ProjectID, Hash: hash, Name: "新节点", Level: parent.Level + 1}
 		if err := tx.Create(&sc).Error; err != nil {
 			return err
 		}
@@ -283,7 +283,7 @@ func (s *NodeService) CreateNextNode(sceneID uint) (*models.Node, *models.Port, 
 		if err := tx.Create(&p).Error; err != nil {
 			return err
 		}
-		return normalize(tx, parent.CanvasID)
+		return normalize(tx, parent.ProjectID)
 	})
 	return &sc, &p, nil, err
 }
@@ -294,14 +294,14 @@ func (s *NodeService) CreateMagicPort(sceneID uint, hash string) (*models.Port, 
 		if err := activeScenes(tx).First(&from, sceneID).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("hash = ? AND canvas_id = ?", strings.TrimSpace(hash), from.CanvasID).First(&to).Error; err != nil {
+		if err := tx.Where("hash = ? AND project_id = ?", strings.TrimSpace(hash), from.ProjectID).First(&to).Error; err != nil {
 			return errors.New("目标节点不存在于当前工程")
 		}
 		p = nextPort(tx, from, to.Hash, true)
 		if err := tx.Create(&p).Error; err != nil {
 			return err
 		}
-		return normalize(tx, from.CanvasID)
+		return normalize(tx, from.ProjectID)
 	})
 	return &p, nil, err
 }
@@ -318,11 +318,11 @@ func (s *NodeService) saveContent(id uint, r io.Reader, ext string) (*models.Nod
 }
 func (s *NodeService) saveContentTx(id uint, r io.Reader, ext string) (*models.Node, error) {
 	var sc models.Node
-	var canvas models.Canvas
+	var canvas models.Project
 	if err := activeScenes(s.db).First(&sc, id).Error; err != nil {
 		return nil, err
 	}
-	if err := s.db.First(&canvas, sc.CanvasID).Error; err != nil {
+	if err := s.db.First(&canvas, sc.ProjectID).Error; err != nil {
 		return nil, err
 	}
 	// Every upload owns a new directory; published versions are never overwritten.
@@ -383,7 +383,7 @@ func (s *NodeService) CopyProperties(id, sourceID uint, snapshot CanvasView) err
 		if err := activeScenes(tx).First(&dst, id).Error; err != nil {
 			return err
 		}
-		if dst.CanvasID != snapshot.CanvasID {
+		if dst.ProjectID != snapshot.ProjectID {
 			return errors.New("仅支持同工程复制属性")
 		}
 		for _, src := range snapshot.Scenes {
@@ -398,7 +398,7 @@ func (s *NodeService) CopyProperties(id, sourceID uint, snapshot CanvasView) err
 
 // Nodes/ports remain hard-deleted. Their owning project controls access.
 func activeScenes(db *gorm.DB) *gorm.DB {
-	return db.Where("canvas_id IN (?)", db.Model(&models.Canvas{}).Select("id"))
+	return db.Where("project_id IN (?)", db.Model(&models.Project{}).Select("id"))
 }
 func activePorts(db *gorm.DB) *gorm.DB {
 	return db.Where("node_id IN (?)", activeScenes(db).Model(&models.Node{}).Select("id"))

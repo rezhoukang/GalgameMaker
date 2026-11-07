@@ -40,7 +40,7 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 	if err := db.AutoMigrate(
 		&models.Config{},
 		&models.Folder{},
-		&models.Canvas{},
+		&models.Project{},
 		&models.Node{},
 		&models.Port{},
 	); err != nil {

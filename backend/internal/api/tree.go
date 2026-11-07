@@ -110,7 +110,7 @@ func (h *Handlers) getCanvas(c *gin.Context) {
 	ok(c, view)
 }
 
-// updateScene 更新 HTML 框（名称/位置）。
+// updateScene 更新剧情节点名称。
 func (h *Handlers) updateScene(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -118,15 +118,13 @@ func (h *Handlers) updateScene(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Name string  `json:"name"`
-		X    float64 `json:"x"`
-		Y    float64 `json:"y"`
+		Name string `json:"name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		fail(c, http.StatusBadRequest, 400, "请求参数错误")
 		return
 	}
-	scene, err := h.nodes.UpdateScene(uint(id), req.Name, req.X, req.Y)
+	scene, err := h.nodes.UpdateScene(uint(id), req.Name)
 	if err != nil {
 		fail(c, http.StatusBadRequest, 400, err.Error())
 		return

@@ -28,7 +28,7 @@ func ValidateGraph(scenes []Node, ports []Port) error {
 	ids, hashes := map[uint]bool{}, map[string]bool{}
 	for _, p := range ports {
 		from, to := byID[p.NodeID], byHash[p.ExportHash]
-		if from == nil || to == nil || from.CanvasID != to.CanvasID {
+		if from == nil || to == nil || from.ProjectID != to.ProjectID {
 			return fmt.Errorf("端口「%s」目标不存在或跨工程", p.Name)
 		}
 		if p.ID == 0 || p.Hash == "" || ids[p.ID] || hashes[p.Hash] || p.Name == "" {

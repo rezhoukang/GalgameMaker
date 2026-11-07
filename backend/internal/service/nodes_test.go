@@ -17,7 +17,7 @@ type fixture struct {
 	nodes  *NodeService
 	tree   *TreeService
 	cfg    *config.Config
-	canvas *models.Canvas
+	canvas *models.Project
 	root   *models.Node
 }
 
@@ -323,7 +323,7 @@ func TestFolderRenameKeepsNestedResources(t *testing.T) {
 	}
 	var moved models.Folder
 	f.db.First(&moved, folder.ID)
-	var movedCanvas models.Canvas
+	var movedCanvas models.Project
 	f.db.First(&movedCanvas, canvas.ID)
 	if !strings.Contains(moved.Path, "renamed") || !hasFile(filepath.Join(filepath.Dir(contentPath(movedCanvas, *root)), "video.mp4")) {
 		t.Fatal("nested paths not updated")

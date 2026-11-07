@@ -24,9 +24,9 @@ type Folder struct {
 	CreatedAt time.Time      `gorm:"comment:文件夹创建时间，由 GORM 自动填写" json:"createdAt"`                       // 文件夹创建时间，由 GORM 自动填写
 }
 
-// Canvas 画布（树里的「文件」），隶属于某个文件夹。
+// Project 工程（树里的「文件」），对应 projects 表，隶属于某个文件夹。
 // 工程包含剧情节点，每个剧情节点可关联视频或 HTML 内容。
-type Canvas struct {
+type Project struct {
 	DeleteAt  gorm.DeletedAt `gorm:"column:delete_at;index;comment:工程软删除时间；NULL 表示正常，删除时保留节点、端口和素材" json:"-"` // 工程软删除时间；NULL 表示正常，删除时保留节点、端口和素材
 	ID        uint           `gorm:"primaryKey;comment:工程自增主键" json:"id"`                                     // 工程自增主键
 	FolderID  uint           `gorm:"comment:所属文件夹 ID，关联 folders.id，由业务代码校验" json:"folderId"`                  // 所属文件夹 ID，关联 folders.id，由业务代码校验
@@ -39,11 +39,9 @@ type Canvas struct {
 type Node struct {
 	ContentPath string    `gorm:"not null;default:'';comment:节点内容入口相对于工程目录的路径（当前为 HTML 页面）；空串表示未导入内容；复制与撤回可共享内容版本" json:"contentPath"` // 节点内容入口相对于工程目录的路径（当前为 HTML 页面）；空串表示未导入内容；复制与撤回可共享内容版本
 	ID          uint      `gorm:"primaryKey;comment:剧情节点自增主键" json:"id"`                                                               // 剧情节点自增主键
-	CanvasID    uint      `gorm:"comment:所属工程 ID，关联 canvas.id，由业务代码校验" json:"canvasId"`                                                // 所属工程 ID，关联 canvas.id，由业务代码校验
+	ProjectID   uint      `gorm:"comment:所属工程 ID，关联 projects.id，由业务代码校验" json:"projectId"`                                             // 所属工程 ID，关联 projects.id，由业务代码校验
 	Hash        string    `gorm:"uniqueIndex;size:16;not null;comment:节点的全局唯一标识，供端口跳转、哈希定位及导出路由使用" json:"hash"`                        // 节点的全局唯一标识，供端口跳转、哈希定位及导出路由使用
 	Name        string    `gorm:"not null;default:'未命名';comment:节点显示名称，与素材目录名称独立" json:"name"`                                         // 节点显示名称，与素材目录名称独立
-	X           float64   `gorm:"comment:节点横坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置" json:"x"`                                                    // 节点横坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置
-	Y           float64   `gorm:"comment:节点纵坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置" json:"y"`                                                    // 节点纵坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置
 	IsFirst     bool      `gorm:"comment:是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同" json:"first"`                                               // 是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同
 	CreatedAt   time.Time `gorm:"comment:节点创建时间，由 GORM 自动填写" json:"createdAt"`                                                         // 节点创建时间，由 GORM 自动填写
 	Level       int       `gorm:"not null;default:1;comment:普通连接树中的层级，每个工程恰好一个层级为 1 的根节点且不可删除；结构变化时重新计算" json:"level"`                 // 普通连接树中的层级，每个工程恰好一个层级为 1 的根节点且不可删除；结构变化时重新计算
@@ -60,7 +58,7 @@ type Port struct {
 	CreatedAt  time.Time `gorm:"comment:端口创建时间，由 GORM 自动填写" json:"createdAt"`                                                  // 端口创建时间，由 GORM 自动填写
 	UpdatedAt  time.Time `gorm:"comment:端口最后更新时间，由 GORM 在更新记录时维护" json:"updatedAt"`                                            // 端口最后更新时间，由 GORM 在更新记录时维护
 	ExportHash string    `gorm:"not null;index;comment:目标剧情节点的 hash，关联 nodes.hash；目标必须属于同一工程" json:"exportHash"`               // 目标剧情节点的 hash，关联 nodes.hash；目标必须属于同一工程
-	IsShow     bool      `gorm:"not null;default:true;comment:是否显示选项；false 隐藏选项；单出口时自动跳转，多出口时不展示此项" json:"isShow"`                  // 是否显示选项；false 隐藏选项；单出口时自动跳转，多出口时不展示此项
+	IsShow     bool      `gorm:"not null;default:true;comment:是否显示选项；false 隐藏选项；单出口时自动跳转，多出口时不展示此项" json:"isShow"`             // 是否显示选项；false 隐藏选项；单出口时自动跳转，多出口时不展示此项
 	SortOrder  int       `gorm:"not null;default:0;comment:源节点内的出端口排序值，升序排列，相同值按端口 ID 排序" json:"sortOrder"`                    // 源节点内的出端口排序值，升序排列，相同值按端口 ID 排序
 }
 

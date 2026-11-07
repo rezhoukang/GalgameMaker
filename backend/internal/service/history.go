@@ -41,7 +41,7 @@ func signView(db *gorm.DB, view CanvasView) (string, error) {
 }
 
 func readView(db *gorm.DB, canvasID uint) (*CanvasView, error) {
-	var canvas models.Canvas
+	var canvas models.Project
 	if err := db.First(&canvas, canvasID).Error; err != nil {
 		return nil, errors.New("工程不存在")
 	}
@@ -49,7 +49,7 @@ func readView(db *gorm.DB, canvasID uint) (*CanvasView, error) {
 	if err != nil {
 		return nil, err
 	}
-	v := &CanvasView{CanvasID: canvasID, Scenes: ss, Nodes: pp}
+	v := &CanvasView{ProjectID: canvasID, Scenes: ss, Nodes: pp}
 	v.Token, err = signView(db, *v)
 	return v, err
 }
@@ -59,7 +59,7 @@ func readView(db *gorm.DB, canvasID uint) (*CanvasView, error) {
 func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (*CanvasView, error) {
 	var result *CanvasView
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		if want.CanvasID != canvasID {
+		if want.ProjectID != canvasID {
 			return errors.New("历史记录不属于当前工程")
 		}
 		token, err := signView(tx, want)
@@ -84,7 +84,7 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 		}
 		first := 0
 		for _, sc := range want.Scenes {
-			if sc.CanvasID != canvasID {
+			if sc.ProjectID != canvasID {
 				return errors.New("历史记录包含其他工程节点")
 			}
 			if sc.Level == 1 && sc.Hash != rootHash {
@@ -109,7 +109,7 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 				return err
 			}
 		}
-		if err := tx.Where("canvas_id = ?", canvasID).Delete(&models.Node{}).Error; err != nil {
+		if err := tx.Where("project_id = ?", canvasID).Delete(&models.Node{}).Error; err != nil {
 			return err
 		}
 		if err := tx.Create(&want.Scenes).Error; err != nil {

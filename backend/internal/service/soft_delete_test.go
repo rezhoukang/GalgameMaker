@@ -23,7 +23,7 @@ func TestDeletedCanvasRetainsDataAndRejectsAccess(t *testing.T) {
 	if err := f.tree.DeleteItem("canvas", f.canvas.ID); err != nil {
 		t.Fatal(err)
 	}
-	var stored models.Canvas
+	var stored models.Project
 	if err := f.db.Unscoped().First(&stored, f.canvas.ID).Error; err != nil || !stored.DeleteAt.Valid {
 		t.Fatal("project was not soft deleted", err)
 	}
@@ -42,7 +42,7 @@ func TestDeletedCanvasRetainsDataAndRejectsAccess(t *testing.T) {
 			return e
 		},
 		"initial":      func() error { _, e := f.nodes.CreateInitialScene(f.canvas.ID); return e },
-		"scene update": func() error { _, e := f.nodes.UpdateScene(child.ID, "changed", 0, 0); return e },
+		"scene update": func() error { _, e := f.nodes.UpdateScene(child.ID, "changed"); return e },
 		"scene delete": func() error { return f.nodes.DeleteScene(child.ID) },
 		"port update":  func() error { _, e := f.nodes.UpdateNode(port.ID, "changed", nil); return e },
 		"port delete":  func() error { return f.nodes.DeleteNode(port.ID) },
@@ -66,7 +66,7 @@ func TestDeletedCanvasRetainsDataAndRejectsAccess(t *testing.T) {
 	}
 	var scenes []models.Node
 	var ports []models.Port
-	f.db.Where("canvas_id = ?", f.canvas.ID).Find(&scenes)
+	f.db.Where("project_id = ?", f.canvas.ID).Find(&scenes)
 	f.db.Order("sort_order, id").Find(&ports)
 	if len(scenes) != len(before.Scenes) || len(ports) != len(before.Nodes) {
 		t.Fatal("retained graph changed")
@@ -113,7 +113,7 @@ func TestFolderSoftDeleteCascadeAndRetainedPaths(t *testing.T) {
 	if err := f.tree.DeleteItem("canvas", canvas.ID); err != nil {
 		t.Fatal(err)
 	}
-	var earlier models.Canvas
+	var earlier models.Project
 	f.db.Unscoped().First(&earlier, canvas.ID)
 	if err := f.tree.DeleteItem("folder", nested.ID); err != nil {
 		t.Fatal(err)
@@ -121,7 +121,7 @@ func TestFolderSoftDeleteCascadeAndRetainedPaths(t *testing.T) {
 	if err := f.tree.RenameItem("folder", parentID, "renamed"); err != nil {
 		t.Fatal(err)
 	}
-	var moved models.Canvas
+	var moved models.Project
 	f.db.Unscoped().First(&moved, canvas.ID)
 	if moved.Path == canvas.Path {
 		t.Fatal("deleted child path not updated")
@@ -143,7 +143,7 @@ func TestFolderSoftDeleteCascadeAndRetainedPaths(t *testing.T) {
 			parent = folder
 		}
 	}
-	var direct models.Canvas
+	var direct models.Project
 	f.db.Unscoped().First(&direct, f.canvas.ID)
 	if !direct.DeleteAt.Valid || !direct.DeleteAt.Time.Equal(parent.DeleteAt.Time) {
 		t.Fatal("cascade timestamp mismatch")

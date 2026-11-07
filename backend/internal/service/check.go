@@ -19,7 +19,7 @@ func hasFile(path string) bool {
 	return err == nil && !st.IsDir() && st.Size() > 0
 }
 func (s *NodeService) CheckCanvas(canvasID uint) ([]CanvasIssue, error) {
-	var c models.Canvas
+	var c models.Project
 	if err := s.db.First(&c, canvasID).Error; err != nil {
 		return nil, err
 	}

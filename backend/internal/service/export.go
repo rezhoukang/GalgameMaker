@@ -65,7 +65,7 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 		}
 		return nil, fmt.Errorf("导出检测失败：\n%s", strings.Join(messages, "\n"))
 	}
-	var canvas models.Canvas
+	var canvas models.Project
 	if err := s.db.First(&canvas, canvasID).Error; err != nil {
 		return nil, err
 	}

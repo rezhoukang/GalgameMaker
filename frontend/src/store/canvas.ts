@@ -170,7 +170,7 @@ export const useCanvasStore = defineStore('canvas', {
 
     applySnapshot(view: CanvasView) {
       this.snapshot = JSON.parse(JSON.stringify(view))
-      this.scenes = view.scenes.map(s => ({...s}))
+      this.scenes = view.scenes.map(s => ({...s, x: 0, y: 0}))
       const byHash = new Map(this.scenes.map(s => [s.hash, s.id]))
       this.nodes = view.nodes.flatMap(p => {
         const out = {...p, entry: false}
@@ -292,7 +292,7 @@ export const useCanvasStore = defineStore('canvas', {
     },
     pasteProperties() {
       const clip = this.clipboard, id = this.selectedSceneId
-      if (!clip || id == null || clip.snapshot.canvasId !== this.canvasId) return
+      if (!clip || id == null || clip.snapshot.projectId !== this.canvasId) return
       return this.edit(() => api.copyProperties(id, clip.sourceId, clip.snapshot), '已粘贴节点内容属性')
     },
 

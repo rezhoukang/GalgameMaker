@@ -2,9 +2,9 @@
 import type {
   Settings,
   TreeFolder,
-  Canvas,
+  Project,
   CanvasView,
-  Node,
+  NodeData,
   PortItem,
   ExportResult,
   ItemKind
@@ -50,7 +50,7 @@ export const api = {
       body: JSON.stringify({ parentId, name })
     }),
   createCanvas: (folderId: number, name: string) =>
-    request<Canvas>('/api/canvases', {
+    request<Project>('/api/canvases', {
       method: 'POST',
       body: JSON.stringify({ folderId, name })
     }),
@@ -69,24 +69,24 @@ export const api = {
     request<{ sceneName: string; nodeName: string; problem: string }[]>(`/api/canvas/${id}/check`),
 
   // HTML 框（节点）
-  updateScene: (id: number, data: { name?: string; x?: number; y?: number }) =>
-    request<Node>(`/api/scenes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  updateScene: (id: number, data: { name?: string }) =>
+    request<NodeData>(`/api/scenes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteScene: (id: number) => request<void>(`/api/scenes/${id}`, { method: 'DELETE' }),
   // 上传 HTML 框关联的 mp4 视频
   uploadSceneVideo: (id: number, file: File) => {
     const fd = new FormData()
     fd.append('file', file)
-    return request<Node>(`/api/scenes/${id}/video`, { method: 'POST', body: fd })
+    return request<NodeData>(`/api/scenes/${id}/video`, { method: 'POST', body: fd })
   },
   // 导入/覆盖节点的 HTML 内容（文件名不变）
   uploadSceneHtml: (id: number, file: File) => {
     const fd = new FormData()
     fd.append('file', file)
-    return request<Node>(`/api/scenes/${id}/html`, { method: 'PUT', body: fd })
+    return request<NodeData>(`/api/scenes/${id}/html`, { method: 'PUT', body: fd })
   },
   // 从节点的右侧加号创建下一跳：新增出端口 + 右侧空白节点（带入端口），两端共用同一哈希
   createNextNode: (nodeId: number) =>
-    request<{ scene: Node; outNode: PortItem; entryNode: null }>(`/api/scenes/${nodeId}/next`, {
+    request<{ scene: NodeData; outNode: PortItem; entryNode: null }>(`/api/scenes/${nodeId}/next`, {
       method: 'POST'
     }),
   // 新建魔法出端口并连向指定哈希的节点（不画线、导出生效）
@@ -96,7 +96,7 @@ export const api = {
       body: JSON.stringify({ hash })
     }),
   // 设为当前工程的播放起点
-  setFirstScene: (id: number) => request<Node>(`/api/scenes/${id}/first`, { method: 'POST' }),
+  setFirstScene: (id: number) => request<NodeData>(`/api/scenes/${id}/first`, { method: 'POST' }),
 
   // 出端口，入端口只是前端展示
   updateNode: (
@@ -121,7 +121,7 @@ export const api = {
   // 导出
   // 导出指定画布为单页播放器 + 资源目录
   exportAll: (canvasId: number) =>
-    request<ExportResult>('/api/export', { method: 'POST', body: JSON.stringify({ canvasId }) }),
+    request<ExportResult>('/api/export', { method: 'POST', body: JSON.stringify({ projectId: canvasId }) }),
 
   // 初始化（清空数据库与存储目录）
   reset: () => request<void>('/api/reset', { method: 'POST' })

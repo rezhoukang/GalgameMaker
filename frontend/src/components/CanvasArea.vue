@@ -204,7 +204,7 @@ const hintText = '拖动空白平移 · 滚轮缩放'
           <button class="btn" :disabled="!store.canUndo" title="撤回 Ctrl+Z（当前工程最近 50 步，刷新后保留）" @click="store.undo()">撤回</button>
           <button class="btn" :disabled="!store.canRedo" title="重做 Ctrl+Shift+Z" @click="store.redo()">重做</button>
           <button class="btn" :disabled="store.selectedSceneId == null || store.busy" title="复制节点内容属性 Ctrl+C" @click="store.copyProperties()">复制属性</button>
-          <button class="btn" :disabled="store.selectedSceneId == null || !store.clipboard || store.clipboard.snapshot.canvasId !== store.canvasId || store.busy" title="粘贴节点内容属性 Ctrl+V" @click="store.pasteProperties()">粘贴属性</button>
+          <button class="btn" :disabled="store.selectedSceneId == null || !store.clipboard || store.clipboard.snapshot.projectId !== store.canvasId || store.busy" title="粘贴节点内容属性 Ctrl+V" @click="store.pasteProperties()">粘贴属性</button>
           <button class="btn" title="适应画布 Ctrl+0" @click="fitToContent">适应</button>
         </div>
         <span class="hint gesture-hint">{{ store.busy ? '正在保存…' : hintText }}</span>

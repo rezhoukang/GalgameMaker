@@ -16,8 +16,8 @@ func TestIncomingValidationWithoutStoredCounts(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			nodes := []Node{
-				{ID: 1, CanvasID: 1, Hash: "root", Name: "root", Level: 1},
-				{ID: 2, CanvasID: 1, Hash: "child", Name: "child"},
+				{ID: 1, ProjectID: 1, Hash: "root", Name: "root", Level: 1},
+				{ID: 2, ProjectID: 1, Hash: "child", Name: "child"},
 			}
 			ports := []Port{
 				{ID: 1, Hash: "ordinary", NodeID: 1, ExportHash: "child", Name: "ordinary"},
@@ -47,8 +47,8 @@ func TestRootIdentifiedByLevel(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			nodes := []Node{
-				{ID: 1, CanvasID: 1, Hash: "root", Name: "root", Level: tc.rootLevel},
-				{ID: 2, CanvasID: 1, Hash: "child", Name: "child", Level: tc.childLevel},
+				{ID: 1, ProjectID: 1, Hash: "root", Name: "root", Level: tc.rootLevel},
+				{ID: 2, ProjectID: 1, Hash: "child", Name: "child", Level: tc.childLevel},
 			}
 			ports := []Port{{ID: 1, Hash: "edge", NodeID: 1, ExportHash: "child", Name: "choice"}}
 			err := ValidateGraph(nodes, ports)
