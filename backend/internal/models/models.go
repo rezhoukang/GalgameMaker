@@ -8,69 +8,69 @@ import (
 
 // Config 保存应用配置和撤回签名密钥。
 type Config struct {
-	Key   string `gorm:"primaryKey" json:"key"`
-	Value string `json:"value"`
+	Key   string `gorm:"primaryKey;comment:配置项唯一键，例如 history.signing.key" json:"key"` // 配置项唯一键，例如 history.signing.key
+	Value string `gorm:"comment:配置项内容，按字符串保存" json:"value"`                           // 配置项内容，按字符串保存
 }
 
 func (Config) TableName() string { return "config" }
 
 // Folder 文件夹，映射到本地文件系统的真实目录。
 type Folder struct {
-	DeleteAt  gorm.DeletedAt `gorm:"column:delete_at;index" json:"-"`
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	ParentID  *uint          `json:"parentId"`
-	Name      string         `gorm:"not null;default:'未命名'" json:"name"`
-	Path      string         `json:"path"` // 本地文件系统真实路径
-	CreatedAt time.Time      `json:"createdAt"`
+	DeleteAt  gorm.DeletedAt `gorm:"column:delete_at;index;comment:软删除时间；NULL 表示正常，删除时保留目录和素材" json:"-"` // 软删除时间；NULL 表示正常，删除时保留目录和素材
+	ID        uint           `gorm:"primaryKey;comment:文件夹自增主键" json:"id"`                               // 文件夹自增主键
+	ParentID  *uint          `gorm:"comment:父文件夹 ID，关联 folders.id；NULL 表示导航根目录下的文件夹" json:"parentId"`    // 父文件夹 ID，关联 folders.id；NULL 表示导航根目录下的文件夹
+	Name      string         `gorm:"not null;default:'未命名';comment:文件夹名称，也是本地目录名称" json:"name"`          // 文件夹名称，也是本地目录名称
+	Path      string         `gorm:"comment:文件夹在本机文件系统中的完整路径" json:"path"`                               // 文件夹在本机文件系统中的完整路径
+	CreatedAt time.Time      `gorm:"comment:文件夹创建时间，由 GORM 自动填写" json:"createdAt"`                       // 文件夹创建时间，由 GORM 自动填写
 }
 
 // Canvas 画布（树里的「文件」），隶属于某个文件夹。
 // 工程包含剧情节点，每个剧情节点可关联视频或 HTML 内容。
 type Canvas struct {
-	DeleteAt  gorm.DeletedAt `gorm:"column:delete_at;index" json:"-"`
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	FolderID  uint           `json:"folderId"`
-	Name      string         `gorm:"not null;default:'未命名'" json:"name"` // 画布名称
-	Path      string         `json:"path"`                               // 画布真实目录（存放 HTML 文件）
-	CreatedAt time.Time      `json:"createdAt"`
+	DeleteAt  gorm.DeletedAt `gorm:"column:delete_at;index;comment:工程软删除时间；NULL 表示正常，删除时保留节点、端口和素材" json:"-"` // 工程软删除时间；NULL 表示正常，删除时保留节点、端口和素材
+	ID        uint           `gorm:"primaryKey;comment:工程自增主键" json:"id"`                                     // 工程自增主键
+	FolderID  uint           `gorm:"comment:所属文件夹 ID，关联 folders.id，由业务代码校验" json:"folderId"`                  // 所属文件夹 ID，关联 folders.id，由业务代码校验
+	Name      string         `gorm:"not null;default:'未命名';comment:工程显示名称，导航栏将工程显示为文件" json:"name"`           // 工程显示名称，导航栏将工程显示为文件
+	Path      string         `gorm:"comment:工程素材的本地完整目录路径" json:"path"`                                       // 工程素材的本地完整目录路径
+	CreatedAt time.Time      `gorm:"comment:工程创建时间，由 GORM 自动填写" json:"createdAt"`                             // 工程创建时间，由 GORM 自动填写
 }
 
-// Node is a story node. Media references use a stable directory independent of its name.
+// Node 剧情节点，对应 nodes 表，可关联视频或 HTML 内容。
 type Node struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	CanvasID  uint      `json:"canvasId"`
-	Hash      string    `gorm:"uniqueIndex;size:16;not null" json:"hash"` // 节点哈希（全局唯一）
-	Name      string    `gorm:"not null;default:'未命名'" json:"name"`       // 显示名称，与素材目录无关
-	X         float64   `json:"x"`                                        // 画布坐标
-	Y         float64   `json:"y"`
-	Video     string    `gorm:"not null;default:''" json:"video"` // 关联的 mp4 文件名（空表示无视频）
-	IsFirst   bool      `json:"first"`                            // 是否「开始」区块（工程内唯一，导出入口）
-	OutCount  int       `json:"outCount"`                         // 普通出端口数（出边数）
-	InCount   int       `json:"inCount"`                          // 普通入端口数（入边数）
-	HasMagic  bool      `json:"hasMagic"`                         // 是否有魔法端口（0/1）
-	CreatedAt time.Time `json:"createdAt"`
-	Level     int       `gorm:"not null;default:1" json:"level"`
-	IsRoot    bool      `gorm:"not null;default:false" json:"isRoot"`
-	AssetDir  string    `gorm:"not null;default:''" json:"assetDir"`
-	HTMLFile  string    `gorm:"not null;default:''" json:"htmlFile"`
+	ID        uint      `gorm:"primaryKey;comment:剧情节点自增主键" json:"id"`                                                                   // 剧情节点自增主键
+	CanvasID  uint      `gorm:"comment:所属工程 ID，关联 canvas.id，由业务代码校验" json:"canvasId"`                                                    // 所属工程 ID，关联 canvas.id，由业务代码校验
+	Hash      string    `gorm:"uniqueIndex;size:16;not null;comment:节点的全局唯一标识，供端口跳转、哈希定位及导出路由使用" json:"hash"`                            // 节点的全局唯一标识，供端口跳转、哈希定位及导出路由使用
+	Name      string    `gorm:"not null;default:'未命名';comment:节点显示名称，与素材目录名称独立" json:"name"`                                             // 节点显示名称，与素材目录名称独立
+	X         float64   `gorm:"comment:节点横坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置" json:"x"`                                                        // 节点横坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置
+	Y         float64   `gorm:"comment:节点纵坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置" json:"y"`                                                        // 节点纵坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置
+	Video     string    `gorm:"not null;default:'';comment:视频相对 asset_dir 的路径，例如 .versions/xxx.mp4；空串表示未指定，检查时会扫描目录中的 mp4" json:"video"` // 视频相对 asset_dir 的路径，例如 .versions/xxx.mp4；空串表示未指定，检查时会扫描目录中的 mp4
+	IsFirst   bool      `gorm:"comment:是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同" json:"first"`                                                   // 是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同
+	OutCount  int       `gorm:"comment:普通出端口数量，不含魔法端口；根据连接关系统计并写回" json:"outCount"`                                                      // 普通出端口数量，不含魔法端口；根据连接关系统计并写回
+	InCount   int       `gorm:"comment:普通入端口数量，不含魔法端口；根节点为 0，其他正常节点为 1" json:"inCount"`                                                  // 普通入端口数量，不含魔法端口；根节点为 0，其他正常节点为 1
+	HasMagic  bool      `gorm:"comment:是否有魔法出端口或魔法入端口；根据连接关系统计并写回" json:"hasMagic"`                                                      // 是否有魔法出端口或魔法入端口；根据连接关系统计并写回
+	CreatedAt time.Time `gorm:"comment:节点创建时间，由 GORM 自动填写" json:"createdAt"`                                                             // 节点创建时间，由 GORM 自动填写
+	Level     int       `gorm:"not null;default:1;comment:普通连接树中的层级，根节点为 1；结构变化时重新计算" json:"level"`                                      // 普通连接树中的层级，根节点为 1；结构变化时重新计算
+	IsRoot    bool      `gorm:"not null;default:false;comment:是否为工程根节点；每个工程恰好一个，禁止单独删除" json:"isRoot"`                                   // 是否为工程根节点；每个工程恰好一个，禁止单独删除
+	AssetDir  string    `gorm:"not null;default:'';comment:相对于工程目录的素材目录；复制内容属性时可引用其他节点的素材目录" json:"assetDir"`                            // 相对于工程目录的素材目录；复制内容属性时可引用其他节点的素材目录
+	HTMLFile  string    `gorm:"not null;default:'';comment:HTML 文件相对 asset_dir 的路径；空串表示未导入 HTML 内容" json:"htmlFile"`                     // HTML 文件相对 asset_dir 的路径；空串表示未导入 HTML 内容
 }
 
-// Port stores one outgoing port in ports. The incoming endpoint is derived by the frontend.
+// Port 出端口，对应 ports 表；入端口仅由前端派生，不单独保存。
 type Port struct {
-	ID            uint      `gorm:"primaryKey" json:"id"`
-	Hash          string    `gorm:"size:32;uniqueIndex;not null" json:"hash"` // 出端口的稳定唯一标识
-	Name          string    `gorm:"column:option_content;not null;default:'选项'" json:"name"`
-	SceneID       uint      `gorm:"not null;index" json:"sceneId"`                 // 所属剧情节点
-	TargetKind    string    `gorm:"size:8;not null;default:mp4" json:"targetKind"` // 出端口跳转类型：mp4 / html
-	EndingContent string    `gorm:"not null;default:''" json:"endingContent"`      // 结局内容（末节点播完黑屏显示）
-	Entry         bool      `gorm:"-" json:"entry"`                                // 仅用于前端生成的入端口，不写数据库
-	Magic         bool      `gorm:"not null;default:false" json:"magic"`           // 是否魔法端口对
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
-	ExportHash    string    `gorm:"not null;index" json:"exportHash"`
-	ShowOption    bool      `gorm:"not null;default:true" json:"showOption"`
-	SortOrder     int       `gorm:"not null;default:0" json:"sortOrder"`
+	ID            uint      `gorm:"primaryKey;comment:出端口自增主键；前端派生的入端口使用对应负 ID" json:"id"`                                        // 出端口自增主键；前端派生的入端口使用对应负 ID
+	Hash          string    `gorm:"size:32;uniqueIndex;not null;comment:出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步" json:"hash"`             // 出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步
+	Name          string    `gorm:"column:option_content;not null;default:'选项';comment:选项显示文案，数据库列名为 option_content" json:"name"` // 选项显示文案，数据库列名为 option_content
+	SceneID       uint      `gorm:"not null;index;comment:所属源节点 ID，关联 nodes.id；字段沿用 scene_id 名称" json:"sceneId"`                  // 所属源节点 ID，关联 nodes.id；字段沿用 scene_id 名称
+	TargetKind    string    `gorm:"size:8;not null;default:mp4;comment:跳转后播放目标节点的内容类型：mp4 为视频，html 为 HTML 页面" json:"targetKind"`  // 跳转后播放目标节点的内容类型：mp4 为视频，html 为 HTML 页面
+	EndingContent string    `gorm:"not null;default:'';comment:目标节点结束时显示的结局文案；当前保存在连入端口上，多个连入端口可能覆盖同一目标的文案" json:"endingContent"` // 目标节点结束时显示的结局文案；当前保存在连入端口上，多个连入端口可能覆盖同一目标的文案
+	Entry         bool      `gorm:"-" json:"entry"`                                                                               // 仅供 API 和前端区分方向，不入库；后端出端口为 false，前端派生入端口为 true
+	Magic         bool      `gorm:"not null;default:false;comment:是否为魔法出端口；true 不画连接线，也不参与普通树层级和子树归属" json:"magic"`               // 是否为魔法出端口；true 不画连接线，也不参与普通树层级和子树归属
+	CreatedAt     time.Time `gorm:"comment:端口创建时间，由 GORM 自动填写" json:"createdAt"`                                                  // 端口创建时间，由 GORM 自动填写
+	UpdatedAt     time.Time `gorm:"comment:端口最后更新时间，由 GORM 在更新记录时维护" json:"updatedAt"`                                            // 端口最后更新时间，由 GORM 在更新记录时维护
+	ExportHash    string    `gorm:"not null;index;comment:目标剧情节点的 hash，关联 nodes.hash；目标必须属于同一工程" json:"exportHash"`               // 目标剧情节点的 hash，关联 nodes.hash；目标必须属于同一工程
+	ShowOption    bool      `gorm:"not null;default:true;comment:是否显示选项；false 仅在源节点恰好一个出口时用于自动跳转" json:"showOption"`              // 是否显示选项；false 仅在源节点恰好一个出口时用于自动跳转
+	SortOrder     int       `gorm:"not null;default:0;comment:源节点内的出端口排序值，升序排列，相同值按端口 ID 排序" json:"sortOrder"`                    // 源节点内的出端口排序值，升序排列，相同值按端口 ID 排序
 }
 
-// Port is one outgoing port.
+// TableName 指定出端口表名。
 func (Port) TableName() string { return "ports" }
