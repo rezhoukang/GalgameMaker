@@ -21,7 +21,7 @@ async function save() {
   <div class="modal-mask variables-mask" @click.self="emit('close')">
     <section class="modal variables-modal" role="dialog" aria-modal="true" aria-labelledby="variables-title">
       <h3 id="variables-title">剧情变量</h3>
-      <p class="hint">{{ store.canvasName }} · 定义数值变量，端口可检查条件、增减或清空数值。</p>
+      <p class="hint">{{ store.canvasName }} · 定义数值变量，端口可检查条件、增减或直接设值。</p>
       <div class="variable-list">
         <div v-for="(v, i) in rows" :key="i" class="variable-row">
           <label>名称<input v-model="v.name" :aria-label="`变量 ${i + 1} 名称`" placeholder="例如：勇气" :disabled="store.busy" /></label>
@@ -31,7 +31,7 @@ async function save() {
         <p v-if="!rows.length" class="empty">暂无变量，添加后即可在端口设置中使用。</p>
       </div>
       <button class="btn" :disabled="store.busy" @click="add">＋ 添加变量</button>
-      <p class="hint footnote">需要清空变量时，在对应端口配置“清空”效果。正在被端口使用的变量不可删除。修改剧情配置后重新导出，旧版玩家存档需重新开始。</p>
+      <p class="hint footnote">需要清空变量时，在对应端口选择“设值”并填 0。正在被端口使用的变量不可删除。修改剧情配置后重新导出，旧版玩家存档需重新开始。</p>
       <footer class="row"><button class="btn" @click="emit('close')">取消</button><button class="btn primary" :disabled="store.busy" @click="save">保存变量</button></footer>
     </section>
   </div>

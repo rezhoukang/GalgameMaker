@@ -70,7 +70,7 @@ onMounted(() => {
 
 async function save() {
   const ids = new Set(store.variables.map(v => v.id))
-  if (rules.value.conditions.some(c => !ids.has(c.variableId) || !Number.isSafeInteger(c.value)) || rules.value.effects.some(e => !ids.has(e.variableId) || !['add','clear'].includes(e.operation) || !Number.isSafeInteger(e.delta) || (e.operation === 'clear' && e.delta !== 0))) {
+  if (rules.value.conditions.some(c => !ids.has(c.variableId) || !Number.isSafeInteger(c.value)) || rules.value.effects.some(e => !ids.has(e.variableId) || ![0,1].includes(e.set) || !Number.isSafeInteger(e.delta))) {
     useAppStore().notify('请选择有效变量，并填写整数数值', 'error'); return
   }
   const p = primary.value

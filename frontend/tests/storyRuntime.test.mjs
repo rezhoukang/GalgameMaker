@@ -23,7 +23,7 @@ test('all/any comparisons and unconditional ports', () => {
 })
 
 test('conditions precede clear and add effects, and unconfigured variables are retained', () => {
-  const p = port({conditions:[{variableId:1,operator:'>=',value:3}],effects:[{variableId:1,operation:'clear',delta:0},{variableId:2,operation:'add',delta:1}]})
+  const p = port({conditions:[{variableId:1,operator:'>=',value:3}],effects:[{variableId:1,set:1,delta:0},{variableId:2,set:0,delta:1}]})
   const r = createRuntime(graph(p), vars, 1)
   const original = r.initial()
   const next = r.transition(original,10)
@@ -40,13 +40,13 @@ test('conditions precede clear and add effects, and unconfigured variables are r
 })
 
 test('overflow fails atomically and long looping history validates', () => {
-  const p = port({effects:[{variableId:1,operation:'add',delta:1},{variableId:2,operation:'add',delta:Number.MAX_SAFE_INTEGER}]})
+  const p = port({effects:[{variableId:1,set:0,delta:1},{variableId:2,set:0,delta:Number.MAX_SAFE_INTEGER}]})
   const r = createRuntime(graph(p),vars,1)
   const state = r.transition(r.initial(),10)
   const before = copy(state)
   assert.throws(() => r.transition(state,10),/安全整数/)
   assert.deepEqual(copy(state),before)
-  p.effects = [{variableId:2,operation:'add',delta:1}]
+  p.effects = [{variableId:2,set:0,delta:1}]
   let loop = r.initial()
   for(let i=0;i<1000;i++) loop = r.transition(loop,10)
   assert.equal(r.validState(loop),true)
@@ -54,18 +54,32 @@ test('overflow fails atomically and long looping history validates', () => {
 })
 
 test('clear uses the value at runtime, retains unrelated variables and rejects invalid effects atomically', () => {
-  const p = port({effects:[{variableId:1,operation:'clear',delta:0}]})
+  const p = port({effects:[{variableId:1,set:1,delta:0}]})
   for (const n of [0,3,8,-5,Number.MAX_SAFE_INTEGER,-Number.MAX_SAFE_INTEGER]) {
     const r = createRuntime(graph(p),[{id:1,initialValue:n},{id:2,initialValue:9}],1)
     assert.deepEqual(copy(r.transition(r.initial(),10).values),{'1':0,'2':9})
   }
   const r = createRuntime(graph(p),vars,1)
   const state = r.initial()
-  p.effects.push({variableId:2,operation:'unknown',delta:0})
-  assert.throws(() => r.transition(state,10),/操作/)
+  p.effects.push({variableId:2,set:2,delta:0})
+  assert.throws(() => r.transition(state,10),/set/)
   assert.deepEqual(copy(state.values),{'1':3,'2':0})
-  p.effects = [{variableId:1,operation:'clear',delta:1}]
-  assert.throws(() => r.transition(state,10),/清空/)
+  p.effects = [{variableId:1,set:-1,delta:1}]
+  assert.throws(() => r.transition(state,10),/set/)
+})
+
+test('set assigns any safe target value and does not add to the current value', () => {
+  for (const target of [2,0,-3,Number.MAX_SAFE_INTEGER,-Number.MAX_SAFE_INTEGER]) {
+    const p = port({effects:[{variableId:1,set:1,delta:target}]})
+    const r = createRuntime(graph(p),[{id:1,initialValue:Number.MAX_SAFE_INTEGER}],1)
+    const next = r.transition(r.initial(),10)
+    assert.equal(next.values[1],target)
+    assert.equal(r.validState(next),true)
+    assert.equal(r.transition(next,10).values[1],target)
+  }
+  const p = port({effects:[{variableId:1,set:1,delta:Number.MAX_SAFE_INTEGER+1}]})
+  const r = createRuntime(graph(p),vars,1)
+  assert.throws(() => r.transition(r.initial(),10),/效果/)
 })
 
 function player(p, storage = new Map(), revision = 'v1') {
@@ -88,7 +102,7 @@ function player(p, storage = new Map(), revision = 'v1') {
 }
 
 test('player guards duplicate/stale clicks and resumes without replaying effects', () => {
-  const p = port({effects:[{variableId:1,operation:'clear',delta:0},{variableId:2,operation:'add',delta:1}]})
+  const p = port({effects:[{variableId:1,set:1,delta:0},{variableId:2,set:0,delta:1}]})
   const game=player(p)
   game.click('start')
   game.ctx.afterContent()

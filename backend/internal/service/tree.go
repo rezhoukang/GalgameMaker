@@ -337,6 +337,9 @@ func (s *TreeService) collectChildFolders(tx *gorm.DB, acc *[]models.Folder, par
 // ResetAll 初始化：清空数据库、清空存储目录，再创建默认结构。
 func (s *TreeService) ResetAll() error {
 	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("1 = 1").Delete(&models.PortCondition{}).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("1 = 1").Delete(&models.Variable{}).Error; err != nil {
 			return err
 		}

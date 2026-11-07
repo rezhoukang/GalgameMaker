@@ -24,6 +24,35 @@ type PortRules struct {
 	Effects       []models.PortEffect    `json:"effects"`       // 变量变化列表
 }
 
+// loadPortConditions 按端口一次读取条件，空列表固定返回 []。
+func loadPortConditions(db *gorm.DB, ports []models.Port) error {
+	ids := []uint{}
+	byID := map[uint]*models.Port{}
+	for i := range ports {
+		ports[i].Conditions = []models.PortCondition{}
+		ids = append(ids, ports[i].ID)
+		byID[ports[i].ID] = &ports[i]
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	var rows []models.PortCondition
+	if err := db.Where("port_id IN ?", ids).Order("id").Find(&rows).Error; err != nil {
+		return err
+	}
+	for _, c := range rows {
+		byID[c.PortID].Conditions = append(byID[c.PortID].Conditions, c)
+	}
+	return nil
+}
+
+func deletePortConditions(db *gorm.DB, ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return db.Where("port_id IN ?", ids).Delete(&models.PortCondition{}).Error
+}
+
 func validateRules(vars []models.Variable, mode string, conditions []models.PortCondition, effects []models.PortEffect) error {
 	if mode != "all" && mode != "any" {
 		return errors.New("条件组合方式必须为 all 或 any")
@@ -54,16 +83,10 @@ func validateRules(vars []models.Variable, mode string, conditions []models.Port
 			return errors.New("同一端口的每个变量只配置一条变化")
 		}
 		if !validStoryValue(e.Delta) {
-			return errors.New("变化量必须为安全整数")
+			return errors.New("效果数值必须为安全整数")
 		}
-		switch e.Operation {
-		case "add":
-		case "clear":
-			if e.Delta != 0 {
-				return errors.New("清空操作的变化量必须为 0")
-			}
-		default:
-			return errors.New("变量操作必须为 add 或 clear")
+		if e.Set != 0 && e.Set != 1 {
+			return errors.New("set 必须为 0（增减）或 1（设值）")
 		}
 		seen[e.VariableID] = true
 	}
@@ -83,7 +106,18 @@ func savePortRules(tx *gorm.DB, p *models.Port, rules PortRules) error {
 		return err
 	}
 	p.ConditionMode = rules.ConditionMode
-	p.Conditions = append([]models.PortCondition{}, rules.Conditions...)
+	if err = deletePortConditions(tx, []uint{p.ID}); err != nil {
+		return err
+	}
+	p.Conditions = []models.PortCondition{}
+	for _, c := range rules.Conditions {
+		c.ID = 0
+		c.PortID = p.ID
+		if err = tx.Create(&c).Error; err != nil {
+			return err
+		}
+		p.Conditions = append(p.Conditions, c)
+	}
 	p.Effects = append([]models.PortEffect{}, rules.Effects...)
 	return nil
 }
@@ -123,12 +157,15 @@ func (s *NodeService) SaveVariables(projectID uint, vars []models.Variable) erro
 				kept[v.ID] = true
 			}
 		}
-		// 规则随端口保存在 JSON 中，按工程读取后统一检查引用。
+		// 条件从独立表读取，效果从端口 JSON 读取，统一检查变量引用。
 		var ports []models.Port
 		if err = tx.Where("node_id IN (?)", tx.Model(&models.Node{}).Select("id").Where("project_id = ?", projectID)).Find(&ports).Error; err != nil {
 			return err
 		}
 		used := map[uint]bool{}
+		if err = loadPortConditions(tx, ports); err != nil {
+			return err
+		}
 		for _, p := range ports {
 			for _, c := range p.Conditions {
 				used[c.VariableID] = true

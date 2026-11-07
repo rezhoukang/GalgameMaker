@@ -40,10 +40,9 @@ function createStoryRuntime(nodes, variables, first) {
       var key = String(e.variableId);
       if (!definitions[key] || seen[key] || !Number.isSafeInteger(e.delta)) throw new Error('变量效果无效');
       seen[key] = true;
-      if (e.operation !== 'add' && e.operation !== 'clear') throw new Error('变量操作无效');
-      if (e.operation === 'clear' && e.delta !== 0) throw new Error('清空操作的变化量必须为 0');
-      // 清空由播放器在经过端口时执行，等价于 delta = -当前值。
-      var next = e.operation === 'clear' ? 0 : values[key] + e.delta;
+      if (e.set !== 0 && e.set !== 1) throw new Error('set 必须为 0 或 1');
+      // 设值直接使用 delta 作为目标值；设为 0 即清空。
+      var next = e.set === 1 ? e.delta : values[key] + e.delta;
       if (!Number.isSafeInteger(next)) throw new Error('变量数值超出安全整数范围');
       values[key] = next;
     });

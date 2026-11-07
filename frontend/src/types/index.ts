@@ -92,8 +92,8 @@ export interface PortCondition {
 }
 export interface PortEffect {
   variableId: number // 修改的变量
-  operation: 'add' | 'clear' // 增减或清空为 0
-  delta: number // add 时正数增加、负数减少；clear 时固定为 0
+  set: 0 | 1 // 0 增减，1 直接设值
+  delta: number // set=0 时表示增减量，set=1 时表示目标值（0 即清空）
 }
 export interface PortRules {
   conditionMode: 'all' | 'any' // 多条条件的组合方式

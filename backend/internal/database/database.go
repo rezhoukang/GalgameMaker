@@ -44,6 +44,7 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 		&models.Node{},
 		&models.Port{},
 		&models.Variable{},
+		&models.PortCondition{},
 	); err != nil {
 		return nil, err
 	}

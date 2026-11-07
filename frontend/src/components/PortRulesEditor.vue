@@ -8,7 +8,7 @@ const store = useCanvasStore()
 const operators = ['>=','<=','==','!=','>','<']
 const unused = computed(() => store.variables.filter(v => !rules.value.effects.some(e => e.variableId === v.id)))
 function addCondition() { if (store.variables.length) rules.value.conditions.push({variableId: store.variables[0].id, operator: '>=', value: 1}) }
-function addEffect() { if (unused.value.length) rules.value.effects.push({variableId: unused.value[0].id, operation: 'add', delta: 1}) }
+function addEffect() { if (unused.value.length) rules.value.effects.push({variableId: unused.value[0].id, set: 0, delta: 1}) }
 </script>
 <template>
   <section class="rules-section">
@@ -23,12 +23,11 @@ function addEffect() { if (unused.value.length) rules.value.effects.push({variab
     </div>
     <button class="btn add-rule" :disabled="store.busy || !store.variables.length" @click="addCondition">＋ 添加条件</button>
     <h4 class="effects-title">经过端口后的变化</h4>
-    <p class="hint">增减：正数增加，负数减少；清空：将当前值设为 0。未配置的变量保持不变。</p>
+    <p class="hint">增减：正数增加，负数减少；设值：直接改为填写的数值，填 0 即清空。未配置的变量保持不变。</p>
     <div v-for="(e,i) in rules.effects" :key="i" class="rule-row effect-row">
       <select v-model.number="e.variableId" :aria-label="`变化 ${i+1} 变量`" :disabled="store.busy"><option v-for="v in store.variables" :key="v.id" :value="v.id" :disabled="rules.effects.some(other => other !== e && other.variableId === v.id)">{{ v.name }}</option></select>
-      <select v-model="e.operation" :aria-label="`变化 ${i+1} 操作`" :disabled="store.busy" @change="e.delta = e.operation === 'clear' ? 0 : 1"><option value="add">增减</option><option value="clear">清空</option></select>
-      <input v-if="e.operation === 'add'" v-model.number="e.delta" type="number" step="1" :aria-label="`变化 ${i+1} 增减量`" :disabled="store.busy" />
-      <span v-else class="clear-value">设为 0</span>
+      <select v-model.number="e.set" :aria-label="`变化 ${i+1} 操作`" :disabled="store.busy"><option :value="0">增减</option><option :value="1">设值</option></select>
+      <input v-model.number="e.delta" type="number" step="1" :aria-label="`变化 ${i+1} ${e.set === 1 ? '目标值' : '增减量'}`" :disabled="store.busy" />
       <button class="remove" :aria-label="`删除变化 ${i+1}`" :disabled="store.busy" @click="rules.effects.splice(i,1)"><AppIcon name="close" :size="14" /></button>
     </div>
     <button class="btn add-rule" :disabled="store.busy || !unused.length" @click="addEffect">＋ 添加变量变化</button>
@@ -45,7 +44,6 @@ select { min-width: 0; max-width: 100%; height: 36px; padding: 5px 8px; border: 
 .rule-row { display: grid; align-items: center; gap: 6px; margin-top: 8px; }
 .condition-row { grid-template-columns: minmax(80px,1fr) 60px 90px 24px; }
 .effect-row { grid-template-columns: minmax(80px,1fr) 72px 90px 24px; }
-.clear-value { color: var(--text-dim); font-size: 12px; text-align: center; }
 .rule-row input { min-width: 0; height: 36px; padding: 5px 8px; }
 .remove { display: grid; place-items: center; border: 0; background: transparent; color: var(--text-dim); height: 30px; }
 .add-rule { margin-top: 10px; font-size: 12px; }
