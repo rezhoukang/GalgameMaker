@@ -9,19 +9,15 @@ type Variable struct {
 	ResetOnLoop  bool   `gorm:"not null;default:false;comment:新一轮循环时是否恢复初始值" json:"resetOnLoop"`         // 循环重置策略
 }
 
-// PortCondition 是端口出现的一个比较条件。
+// PortCondition 是 ports.conditions JSON 数组中的一个比较条件，不独立建表。
 type PortCondition struct {
-	ID         uint   `gorm:"primaryKey;comment:条件主键" json:"id"`                 // 条件 ID
-	PortID     uint   `gorm:"not null;index;comment:所属出端口 ID" json:"portId"`     // 出端口
-	VariableID uint   `gorm:"not null;index;comment:检查的变量 ID" json:"variableId"` // 变量
-	Operator   string `gorm:"not null;comment:比较运算符" json:"operator"`            // >= <= == != > <
-	Value      int64  `gorm:"not null;comment:比较阈值" json:"value"`                // 阈值
+	VariableID uint   `json:"variableId"` // 检查的变量 ID
+	Operator   string `json:"operator"`   // >= <= == != > <
+	Value      int64  `json:"value"`      // 比较阈值
 }
 
-// PortEffect 表示经过端口时对变量执行一次增减。
+// PortEffect 是 ports.effects JSON 数组中的一条变量增减，不独立建表。
 type PortEffect struct {
-	ID         uint  `gorm:"primaryKey;comment:效果主键" json:"id"`                                               // 效果 ID
-	PortID     uint  `gorm:"not null;uniqueIndex:idx_port_variable;comment:所属出端口 ID" json:"portId"`           // 出端口
-	VariableID uint  `gorm:"not null;index;uniqueIndex:idx_port_variable;comment:修改的变量 ID" json:"variableId"` // 变量
-	Delta      int64 `gorm:"not null;comment:正数增加负数减少" json:"delta"`                                          // 变化量
+	VariableID uint  `json:"variableId"` // 修改的变量 ID
+	Delta      int64 `json:"delta"`      // 正数增加，负数减少
 }

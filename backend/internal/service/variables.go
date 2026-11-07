@@ -17,36 +17,6 @@ func projectVariables(db *gorm.DB, projectID uint) ([]models.Variable, error) {
 	return vars, err
 }
 
-func loadPortRules(db *gorm.DB, ports []models.Port) error {
-	ids := []uint{}
-	byID := map[uint]*models.Port{}
-	for i := range ports {
-		p := &ports[i]
-		p.Conditions = []models.PortCondition{}
-		p.Effects = []models.PortEffect{}
-		ids = append(ids, p.ID)
-		byID[p.ID] = p
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	var conditions []models.PortCondition
-	var effects []models.PortEffect
-	if err := db.Where("port_id IN ?", ids).Order("id").Find(&conditions).Error; err != nil {
-		return err
-	}
-	if err := db.Where("port_id IN ?", ids).Order("id").Find(&effects).Error; err != nil {
-		return err
-	}
-	for _, c := range conditions {
-		byID[c.PortID].Conditions = append(byID[c.PortID].Conditions, c)
-	}
-	for _, e := range effects {
-		byID[e.PortID].Effects = append(byID[e.PortID].Effects, e)
-	}
-	return nil
-}
-
 // PortRules 作为一个整体保存，避免只保存了部分条件或效果。
 type PortRules struct {
 	ConditionMode string                 `json:"conditionMode"` // all / any
@@ -104,40 +74,11 @@ func savePortRules(tx *gorm.DB, p *models.Port, rules PortRules) error {
 	if err = validateRules(vars, rules.ConditionMode, rules.Conditions, rules.Effects); err != nil {
 		return err
 	}
-	if err = deletePortRules(tx, []uint{p.ID}); err != nil {
-		return err
-	}
 	p.ConditionMode = rules.ConditionMode
 	p.ResetLoop = rules.ResetLoop
-	p.Conditions = []models.PortCondition{}
-	p.Effects = []models.PortEffect{}
-	for _, c := range rules.Conditions {
-		c.ID = 0
-		c.PortID = p.ID
-		if err = tx.Create(&c).Error; err != nil {
-			return err
-		}
-		p.Conditions = append(p.Conditions, c)
-	}
-	for _, e := range rules.Effects {
-		e.ID = 0
-		e.PortID = p.ID
-		if err = tx.Create(&e).Error; err != nil {
-			return err
-		}
-		p.Effects = append(p.Effects, e)
-	}
+	p.Conditions = append([]models.PortCondition{}, rules.Conditions...)
+	p.Effects = append([]models.PortEffect{}, rules.Effects...)
 	return nil
-}
-
-func deletePortRules(tx *gorm.DB, ids []uint) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	if err := tx.Where("port_id IN ?", ids).Delete(&models.PortCondition{}).Error; err != nil {
-		return err
-	}
-	return tx.Where("port_id IN ?", ids).Delete(&models.PortEffect{}).Error
 }
 
 // SaveVariables 替换变量定义，保留 ID；正在被条件或效果引用的变量不可删除。
@@ -175,21 +116,23 @@ func (s *NodeService) SaveVariables(projectID uint, vars []models.Variable) erro
 				kept[v.ID] = true
 			}
 		}
+		// 规则随端口保存在 JSON 中，按工程读取后统一检查引用。
+		var ports []models.Port
+		if err = tx.Where("node_id IN (?)", tx.Model(&models.Node{}).Select("id").Where("project_id = ?", projectID)).Find(&ports).Error; err != nil {
+			return err
+		}
+		used := map[uint]bool{}
+		for _, p := range ports {
+			for _, c := range p.Conditions {
+				used[c.VariableID] = true
+			}
+			for _, e := range p.Effects {
+				used[e.VariableID] = true
+			}
+		}
 		for _, v := range current {
-			if !kept[v.ID] {
-				var count int64
-				if err = tx.Model(&models.PortCondition{}).Where("variable_id = ?", v.ID).Count(&count).Error; err != nil {
-					return err
-				}
-				if count > 0 {
-					return fmt.Errorf("变量「%s」仍被端口条件使用", v.Name)
-				}
-				if err = tx.Model(&models.PortEffect{}).Where("variable_id = ?", v.ID).Count(&count).Error; err != nil {
-					return err
-				}
-				if count > 0 {
-					return fmt.Errorf("变量「%s」仍被端口效果使用", v.Name)
-				}
+			if !kept[v.ID] && used[v.ID] {
+				return fmt.Errorf("变量「%s」仍被端口条件或效果使用", v.Name)
 			}
 		}
 		// 事务内重建定义以支持名称互换，明确 ID 的记录先插入，新增记录最后插入。

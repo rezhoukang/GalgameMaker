@@ -51,8 +51,8 @@ type Node struct {
 type Port struct {
 	ConditionMode string          `gorm:"not null;default:all;comment:all 全部条件满足或 any 任一满足" json:"conditionMode"`                       // 条件组合方式
 	ResetLoop     bool            `gorm:"not null;default:false;comment:经过时先重置本轮变量再执行效果" json:"resetLoop"`                              // 是否开始新一轮
-	Conditions    []PortCondition `gorm:"-" json:"conditions"`                                                                          // 从 port_conditions 读取的条件列表
-	Effects       []PortEffect    `gorm:"-" json:"effects"`                                                                             // 从 port_effects 读取的效果列表
+	Conditions    []PortCondition `gorm:"serializer:json;type:json;not null;default:'[]';comment:端口出现条件 JSON 数组" json:"conditions"`     // 出现条件，空数组表示无条件
+	Effects       []PortEffect    `gorm:"serializer:json;type:json;not null;default:'[]';comment:变量增减效果 JSON 数组" json:"effects"`        // 经过端口后的增减，空数组表示无变化
 	ID            uint            `gorm:"primaryKey;comment:出端口自增主键；前端派生的入端口使用对应负 ID" json:"id"`                                        // 出端口自增主键；前端派生的入端口使用对应负 ID
 	Hash          string          `gorm:"size:32;uniqueIndex;not null;comment:出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步" json:"hash"`             // 出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步
 	Name          string          `gorm:"column:option_content;not null;default:'选项';comment:选项显示文案，数据库列名为 option_content" json:"name"` // 选项显示文案，数据库列名为 option_content
@@ -68,3 +68,14 @@ type Port struct {
 
 // TableName 指定出端口表名。
 func (Port) TableName() string { return "ports" }
+
+// BeforeSave 保证规则始终保存为 JSON 数组，空规则保存 [] 而非 null。
+func (p *Port) BeforeSave(_ *gorm.DB) error {
+	if p.Conditions == nil {
+		p.Conditions = []PortCondition{}
+	}
+	if p.Effects == nil {
+		p.Effects = []PortEffect{}
+	}
+	return nil
+}

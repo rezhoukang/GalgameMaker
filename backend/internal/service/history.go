@@ -107,13 +107,6 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 		if err := validateStoryRules(want.Variables, want.Nodes, canvasID); err != nil {
 			return err
 		}
-		portIDs := []uint{}
-		for _, p := range current.Nodes {
-			portIDs = append(portIDs, p.ID)
-		}
-		if err := deletePortRules(tx, portIDs); err != nil {
-			return err
-		}
 		if err := tx.Where("project_id = ?", canvasID).Delete(&models.Variable{}).Error; err != nil {
 			return err
 		}
@@ -142,22 +135,6 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 			show := p.IsShow
 			if err := tx.Create(&p).Error; err != nil {
 				return err
-			}
-			for _, c := range p.Conditions {
-				if c.PortID != p.ID {
-					return errors.New("历史端口条件无效")
-				}
-				if err := tx.Create(&c).Error; err != nil {
-					return err
-				}
-			}
-			for _, e := range p.Effects {
-				if e.PortID != p.ID {
-					return errors.New("历史端口效果无效")
-				}
-				if err := tx.Create(&e).Error; err != nil {
-					return err
-				}
 			}
 			if !show {
 				if err := tx.Model(&p).Update("is_show", false).Error; err != nil {

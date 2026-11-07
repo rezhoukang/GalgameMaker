@@ -93,13 +93,10 @@ func TestVariableRulesUndoAndDeletion(t *testing.T) {
 	if err = f.nodes.DeleteScene(child.ID); err != nil {
 		t.Fatal(err)
 	}
-	for _, model := range []interface{}{&models.PortCondition{}, &models.PortEffect{}} {
-		var count int64
-		if err = f.db.Model(model).Count(&count).Error; err != nil || count != 0 {
-			t.Fatalf("orphan rules %d: %v", count, err)
-		}
-	}
 	current := f.view(t)
+	if len(current.Nodes) != 0 {
+		t.Fatal("deleted subtree still has ports and rules")
+	}
 	restored, err := f.nodes.Restore(f.canvas.ID, current.Token, *before)
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +114,9 @@ func TestVariableRulesUndoAndDeletion(t *testing.T) {
 		t.Fatal(err)
 	}
 	var count int64
-	f.db.Model(&models.PortEffect{}).Where("port_id = ?", magic.ID).Count(&count)
+	if err = f.db.Model(&models.Port{}).Where("id = ?", magic.ID).Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
 	if count != 0 {
 		t.Fatal("magic rules survived deletion")
 	}
@@ -129,6 +128,81 @@ func TestVariableRulesUndoAndDeletion(t *testing.T) {
 	}
 	if _, err = f.nodes.UpdateNode(p.ID, "", nil, rules); err == nil {
 		t.Fatal("edited deleted project port")
+	}
+}
+
+func TestPortRulesStoredAsJSON(t *testing.T) {
+	f := setup(t)
+	_, p := f.child(t, f.root.ID)
+	for _, table := range []string{"port_conditions", "port_effects"} {
+		if f.db.Migrator().HasTable(table) {
+			t.Fatal("unexpected separate rules table", table)
+		}
+	}
+	read := func() (string, string) {
+		t.Helper()
+		var raw struct {
+			Conditions string
+			Effects    string
+		}
+		if err := f.db.Table("ports").Select("conditions, effects").Where("id = ?", p.ID).Scan(&raw).Error; err != nil {
+			t.Fatal(err)
+		}
+		return raw.Conditions, raw.Effects
+	}
+	if c, e := read(); c != "[]" || e != "[]" {
+		t.Fatalf("empty rules must be arrays: %q %q", c, e)
+	}
+	if err := f.nodes.SaveVariables(f.canvas.ID, []models.Variable{{Name: "值"}}); err != nil {
+		t.Fatal(err)
+	}
+	id := f.view(t).Variables[0].ID
+	rules := PortRules{ConditionMode: "all", Conditions: []models.PortCondition{{VariableID: id, Operator: ">=", Value: 0}}, Effects: []models.PortEffect{{VariableID: id, Delta: 2}}}
+	if _, err := f.nodes.UpdateNode(p.ID, "选项", nil, rules); err != nil {
+		t.Fatal(err)
+	}
+	c, e := read()
+	var conditions []models.PortCondition
+	var effects []models.PortEffect
+	if err := json.Unmarshal([]byte(c), &conditions); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(e), &effects); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(conditions, rules.Conditions) || !reflect.DeepEqual(effects, rules.Effects) {
+		t.Fatal("stored JSON differs from rules")
+	}
+	// 从数据库读取 JSON 规则后，完整导出仍携带同样的条件和效果。
+	for _, scene := range f.view(t).Scenes {
+		if _, err := f.nodes.UpdateSceneHTML(scene.ID, []byte("<html><body>test</body></html>")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exported, err := NewExportService(f.db, NewSettingsService(f.db, f.cfg)).Export(f.canvas.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := os.ReadFile(filepath.Join(exported.OutputDir, "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(page), `"conditions":`+c) || !strings.Contains(string(page), `"effects":`+e) {
+		t.Fatal("export lost persisted port rules")
+	}
+	hidden := false
+	name := "改名"
+	if _, err := f.nodes.UpdateScene(f.root.ID, "", PortSettings{ID: p.ID, Name: &name, IsShow: &hidden}); err != nil {
+		t.Fatal(err)
+	}
+	if c2, e2 := read(); c2 != c || e2 != e {
+		t.Fatal("editing port name/visibility changed rules")
+	}
+	if _, err := f.nodes.UpdateNode(p.ID, "", nil, PortRules{ConditionMode: "all"}); err != nil {
+		t.Fatal(err)
+	}
+	if c, e := read(); c != "[]" || e != "[]" {
+		t.Fatal("cleared rules were not saved as empty arrays")
 	}
 }
 
