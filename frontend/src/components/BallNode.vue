@@ -6,7 +6,7 @@ import type { PortItem } from '@/types'
 const props = defineProps<{
   node?: PortItem
   pos: { left: number; top: number } // 相对节点的定位（球心对齐 ballWorld）
-  addSceneId?: number | null // 非空：渲染为「新增出端口」十字球（当作一个出端口）
+  addSceneId?: number | null // 非空：渲染为「新增出端口」虚影圆点，悬停时显示加号
 }>()
 
 const store = useCanvasStore()
@@ -83,9 +83,12 @@ function onClick() {
     @keydown.space.stop.prevent="onClick"
     @contextmenu.stop.prevent="onCtx"
   >
-    <span v-if="isAdd" class="add-plus">
-      <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" /></svg>
-    </span>
+    <template v-if="isAdd">
+      <span class="dot add-dot" :style="dotStyle" aria-hidden="true" />
+      <span class="add-plus" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" /></svg>
+      </span>
+    </template>
     <span v-else class="dot" :class="{ magic: isMagic }" :style="dotStyle" />
     <span v-if="node" class="name" :class="side">{{ node.name }}{{ !node.showOption ? ' · 自动' : '' }}</span>
   </div>
@@ -154,25 +157,32 @@ function onClick() {
   border: 2px solid var(--ball-ring);
   z-index: 1;
 }
-/* 新增出端口十字球：直接显示十字（无圆点背景、无圆圈），hover 高亮放大 */
+/* 新增入口默认是淡圆点；悬停或键盘聚焦时切换为加号。 */
+.add-dot {
+  opacity: 0.28;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
 .add-plus {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(0.8);
   color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 0;
-  transition: transform 0.15s;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
 }
-.ball.add:hover .add-plus {
-  transform: translate(-50%, -50%) scale(1.3);
+.ball.add:is(:hover, :focus-visible) .add-dot {
+  opacity: 0;
 }
-.ball.add::after {
-  width: 18px;
-  height: 18px;
+.ball.add:is(:hover, :focus-visible) .add-plus {
+  opacity: 1;
+  transform: translate(-50%, -50%);
 }
 /* 右键菜单 */
 .ctx-menu {
