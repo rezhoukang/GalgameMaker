@@ -145,11 +145,11 @@ async function del() {
           <header class="ports-header">
             <h4 id="ports-panel-title">全部出端口 <span>{{ outPorts.length }}</span></h4>
             <span class="ports-summary">显示 {{ shownCount }} / {{ outPorts.length }}</span>
+            <div class="ports-actions">
+              <button type="button" class="btn" :disabled="store.busy || shownCount === outPorts.length" @click="setAllVisible(true)">全部显示</button>
+              <button type="button" class="btn" :disabled="store.busy || shownCount === 0" @click="setAllVisible(false)">全部隐藏</button>
+            </div>
           </header>
-          <div class="ports-actions">
-            <button type="button" class="btn" :disabled="store.busy || shownCount === outPorts.length" @click="setAllVisible(true)">全部显示</button>
-            <button type="button" class="btn" :disabled="store.busy || shownCount === 0" @click="setAllVisible(false)">全部隐藏</button>
-          </div>
           <div class="ports-list" aria-label="出端口列表">
             <div v-for="(port, index) in outPorts" :key="port.id" class="port-row" :class="{ 'option-hidden': !visibility[port.id] }">
               <span class="port-index">{{ index + 1 }}</span>
@@ -185,12 +185,13 @@ async function del() {
 .properties-columns { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; }
 .node-properties { min-width: 0; }
 .ports-panel { height: 380px; min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.ports-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 10px; }
-.ports-header h4 { font-size: 14px; margin: 0; }
+.ports-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px; border-bottom: 1px solid var(--border); }
+.ports-header h4 { font-size: 14px; margin: 0; white-space: nowrap; }
 .ports-header h4 span { color: var(--text-dim); margin-left: 5px; font-weight: 400; }
 .ports-summary, .port-kind { color: var(--text-dim); font-size: 12px; }
-.ports-actions { display: flex; gap: 8px; padding: 0 16px 12px; border-bottom: 1px solid var(--border); }
-.ports-actions .btn { padding: 5px 10px; font-size: 12px; }
+.ports-summary { white-space: nowrap; }
+.ports-actions { display: flex; flex: none; gap: 6px; margin-left: auto; }
+.ports-actions .btn { padding: 5px 8px; font-size: 12px; white-space: nowrap; }
 .ports-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 12px; }
 .port-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--border-light); }
 .port-row:last-child { border-bottom: 0; }
