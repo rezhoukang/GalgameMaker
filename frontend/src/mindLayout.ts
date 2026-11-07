@@ -3,10 +3,10 @@
 // - 父节点垂直居中于其子树块；多根节点竖直排列
 // - 魔法连线（hidden）不参与布局
 import { CHILD_GAP, LEVEL_GAP, NODE_H, NODE_W, PORT_PAD, PORT_ROW_H, ROOT_X, ROOT_Y } from '@/canvasLayout'
-import type { HtmlScene, NodeItem } from '@/types'
+import type { Scene, PortItem } from '@/types'
 
 /** 布局占位高度：卡片固定 NODE_H，但按端口散开列高预留空间（避免子节点与端口重叠） */
-export function sceneDisplayHeight(sceneId: number, nodes: NodeItem[]): number {
+export function sceneDisplayHeight(sceneId: number, nodes: PortItem[]): number {
   let inCount = 0
   let outCount = 0
   for (const n of nodes) {
@@ -20,8 +20,8 @@ export function sceneDisplayHeight(sceneId: number, nodes: NodeItem[]): number {
 
 /** 计算所有节点的思维导图坐标；collapsedIds 为折叠的节点（其子树不参与布局）；返回 Map<sceneId, {x,y}> */
 export function computeMindLayout(
-  scenes: HtmlScene[],
-  nodes: NodeItem[],
+  scenes: Scene[],
+  nodes: PortItem[],
   collapsedIds: Set<number>
 ): Map<number, { x: number; y: number }> {
   // 建树：出端口（!entry，非魔法）→ 配对入端口所在场景；折叠节点视为叶子

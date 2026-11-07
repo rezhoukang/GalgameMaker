@@ -1,4 +1,4 @@
-// Package models 定义数据实体：设置、文件夹、画布、HTML 框、节点、连线。
+// Package models 定义配置、文件夹、工程、剧情节点和出端口。
 package models
 
 import (
@@ -25,7 +25,7 @@ type Folder struct {
 }
 
 // Canvas 画布（树里的「文件」），隶属于某个文件夹。
-// 画布内可添加多个 HTML 框（制作者做好的 HTML），每个 HTML 框上再有节点。
+// 工程包含剧情节点，每个剧情节点可关联视频或 HTML 内容。
 type Canvas struct {
 	DeleteAt  gorm.DeletedAt `gorm:"column:delete_at;index" json:"-"`
 	ID        uint           `gorm:"primaryKey" json:"id"`
@@ -35,8 +35,8 @@ type Canvas struct {
 	CreatedAt time.Time      `json:"createdAt"`
 }
 
-// HtmlScene is a story node. Media references use a stable directory independent of its name.
-type HtmlScene struct {
+// Scene is a story node. Media references use a stable directory independent of its name.
+type Scene struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	CanvasID  uint      `json:"canvasId"`
 	Hash      string    `gorm:"uniqueIndex;size:16;not null" json:"hash"` // 节点哈希（全局唯一）
@@ -57,12 +57,12 @@ type HtmlScene struct {
 	HTMLFile  string    `gorm:"not null;default:''" json:"htmlFile"`
 }
 
-// Node stores one outgoing port in ports. The incoming endpoint is derived by the frontend.
-type Node struct {
+// Port stores one outgoing port in ports. The incoming endpoint is derived by the frontend.
+type Port struct {
 	ID            uint      `gorm:"primaryKey" json:"id"`
 	Hash          string    `gorm:"size:32;uniqueIndex;not null" json:"hash"` // 出端口的稳定唯一标识
 	Name          string    `gorm:"column:option_content;not null;default:'选项'" json:"name"`
-	SceneID       uint      `gorm:"not null;index" json:"sceneId"`                 // 所属 HTML 框
+	SceneID       uint      `gorm:"not null;index" json:"sceneId"`                 // 所属剧情节点
 	TargetKind    string    `gorm:"size:8;not null;default:mp4" json:"targetKind"` // 出端口跳转类型：mp4 / html
 	EndingContent string    `gorm:"not null;default:''" json:"endingContent"`      // 结局内容（末节点播完黑屏显示）
 	Entry         bool      `gorm:"-" json:"entry"`                                // 仅用于前端生成的入端口，不写数据库
@@ -74,5 +74,5 @@ type Node struct {
 	SortOrder     int       `gorm:"not null;default:0" json:"sortOrder"`
 }
 
-// Node is one outgoing port.
-func (Node) TableName() string { return "ports" }
+// Port is one outgoing port.
+func (Port) TableName() string { return "ports" }

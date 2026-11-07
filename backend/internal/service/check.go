@@ -14,7 +14,7 @@ type CanvasIssue struct {
 	Problem   string `json:"problem"`
 }
 
-func videoFiles(c models.Canvas, sc models.HtmlScene) []string {
+func videoFiles(c models.Canvas, sc models.Scene) []string {
 	if sc.Video != "" {
 		return []string{sc.Video}
 	}
@@ -49,8 +49,8 @@ func (s *NodeService) CheckCanvas(canvasID uint) ([]CanvasIssue, error) {
 		add(c.Name, "结构", err.Error())
 		return issues, nil
 	}
-	byHash := map[string]models.HtmlScene{}
-	outs := map[uint][]models.Node{}
+	byHash := map[string]models.Scene{}
+	outs := map[uint][]models.Port{}
 	first := 0
 	for _, p := range pp {
 		outs[p.SceneID] = append(outs[p.SceneID], p)

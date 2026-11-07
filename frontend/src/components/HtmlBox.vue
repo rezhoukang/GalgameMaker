@@ -4,10 +4,10 @@ import { useCanvasStore } from '@/store/canvas'
 import { useAppStore } from '@/store/app'
 import BallNode from './BallNode.vue'
 import AppIcon from './AppIcon.vue'
-import type { HtmlScene, NodeItem } from '@/types'
+import type { Scene, PortItem } from '@/types'
 import { BALL_R, NODE_H, NODE_RADIUS, NODE_W, PORT_OFFSET, PORT_ROW_H } from '@/canvasLayout'
 
-const props = defineProps<{ scene: HtmlScene }>()
+const props = defineProps<{ scene: Scene }>()
 
 const store = useCanvasStore()
 const app = useAppStore()
@@ -52,7 +52,7 @@ const accent = computed(() =>
 )
 
 // 端口球在节点内的相对位置（世界坐标 - 节点左上角）
-function nodePos(node: NodeItem) {
+function nodePos(node: PortItem) {
   const p = store.ballWorld(node)
   return {
     left: p.x - props.scene.x - BALL_R,

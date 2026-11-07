@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { api } from '@/api/client'
 import { useAppStore } from './app'
 import { useTreeStore } from './tree'
-import type { HtmlScene, NodeItem, CanvasView } from '@/types'
+import type { Scene, PortItem, CanvasView } from '@/types'
 import {
   MAGIC_COLOR,
   MIND_COLORS,
@@ -29,19 +29,19 @@ function clamp(v: number, min: number, max: number) {
 }
 
 /** 节点卡片宽（固定，思维导图不提供拉伸） */
-function sceneWidth(scene: HtmlScene): number {
+function sceneWidth(scene: Scene): number {
   return scene.width > 0 ? scene.width : NODE_W
 }
 
 /** 返回与 nodeId 哈希相同的配对端口（另一端）；没有则返回 null */
-function pairOf(nodes: NodeItem[], nodeId: number): NodeItem | null {
+function pairOf(nodes: PortItem[], nodeId: number): PortItem | null {
   const n = nodes.find((x) => x.id === nodeId)
   if (!n) return null
   return nodes.find((x) => x.id !== nodeId && x.hash === n.hash) ?? null
 }
 
 /** 端口颜色：魔法纯红；出端口按同框出端口顺序取分支调色板；入端口颜色跟随配对出端口 */
-function portColor(nodes: NodeItem[], nodeId: number): string {
+function portColor(nodes: PortItem[], nodeId: number): string {
   const node = nodes.find((n) => n.id === nodeId)
   if (!node) return MIND_COLORS[0]
   if (node.magic) return MAGIC_COLOR
@@ -68,12 +68,12 @@ export const useCanvasStore = defineStore('canvas', {
 
     canvasId: null as number | null,
     canvasName: '',
-    scenes: [] as HtmlScene[],
-    nodes: [] as NodeItem[],
+    scenes: [] as Scene[],
+    nodes: [] as PortItem[],
     selectedSceneId: null as number | null,
     view: { x: 0, y: 0, zoom: 1 } as ViewState,
     interaction: null as Interaction,
-    editingNode: null as NodeItem | null,
+    editingNode: null as PortItem | null,
     editingScene: null as number | null,
     flashSceneId: null as number | null,
     collapsedSceneIds: [] as number[]
@@ -147,7 +147,7 @@ export const useCanvasStore = defineStore('canvas', {
     },
 
     /** 端口在画布上的世界坐标：入端口贴节点左边缘、出端口贴右边缘，以固定行距散开（卡片高度不变） */
-    ballWorld: (s) => (node: NodeItem) => {
+    ballWorld: (s) => (node: PortItem) => {
       const scene = s.scenes.find((sc) => sc.id === node.sceneId)
       if (!scene) return { x: 0, y: 0 }
       const mine = s.nodes.filter((n) => n.sceneId === scene.id)

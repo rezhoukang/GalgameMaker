@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
-import type { NodeItem } from '@/types'
+import type { PortItem } from '@/types'
 import AppIcon from './AppIcon.vue'
 
-const props = defineProps<{ node: NodeItem }>()
+const props = defineProps<{ node: PortItem }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const store = useCanvasStore()

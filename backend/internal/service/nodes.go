@@ -14,21 +14,21 @@ import (
 
 type NodeService struct{ db *gorm.DB }
 
-func NewNodeService(db *gorm.DB) *NodeService             { return &NodeService{db: db} }
-func sceneStem(name string) string                        { return strings.TrimSuffix(name, filepath.Ext(name)) }
-func assetDir(c models.Canvas, s models.HtmlScene) string { return filepath.Join(c.Path, s.AssetDir) }
-func htmlPath(c models.Canvas, s models.HtmlScene) string {
+func NewNodeService(db *gorm.DB) *NodeService         { return &NodeService{db: db} }
+func sceneStem(name string) string                    { return strings.TrimSuffix(name, filepath.Ext(name)) }
+func assetDir(c models.Canvas, s models.Scene) string { return filepath.Join(c.Path, s.AssetDir) }
+func htmlPath(c models.Canvas, s models.Scene) string {
 	if s.HTMLFile == "" {
 		return ""
 	}
 	return filepath.Join(assetDir(c, s), s.HTMLFile)
 }
-func graph(tx *gorm.DB, canvasID uint) ([]models.HtmlScene, []models.Node, error) {
+func graph(tx *gorm.DB, canvasID uint) ([]models.Scene, []models.Port, error) {
 	var canvas models.Canvas
 	if err := tx.First(&canvas, canvasID).Error; err != nil {
 		return nil, nil, err
 	}
-	ss, pp := []models.HtmlScene{}, []models.Node{}
+	ss, pp := []models.Scene{}, []models.Port{}
 	if err := tx.Where("canvas_id = ?", canvasID).Order("id").Find(&ss).Error; err != nil {
 		return nil, nil, err
 	}
@@ -52,14 +52,14 @@ func normalize(tx *gorm.DB, canvasID uint) error {
 		return err
 	}
 	for _, sc := range ss {
-		if err := tx.Model(&models.HtmlScene{}).Where("id = ?", sc.ID).Updates(map[string]interface{}{"level": sc.Level, "port_num": sc.PortNum, "out_count": sc.OutCount, "in_count": sc.InCount, "has_magic": sc.HasMagic}).Error; err != nil {
+		if err := tx.Model(&models.Scene{}).Where("id = ?", sc.ID).Updates(map[string]interface{}{"level": sc.Level, "port_num": sc.PortNum, "out_count": sc.OutCount, "in_count": sc.InCount, "has_magic": sc.HasMagic}).Error; err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (s *NodeService) UpdateScene(id uint, name string, x, y, width float64) (*models.HtmlScene, error) {
-	var scene *models.HtmlScene
+func (s *NodeService) UpdateScene(id uint, name string, x, y, width float64) (*models.Scene, error) {
+	var scene *models.Scene
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var err error
 		scene, err = NewNodeService(tx).updateScene(id, name, x, y, width)
@@ -67,8 +67,8 @@ func (s *NodeService) UpdateScene(id uint, name string, x, y, width float64) (*m
 	})
 	return scene, err
 }
-func (s *NodeService) updateScene(id uint, name string, x, y, width float64) (*models.HtmlScene, error) {
-	var sc models.HtmlScene
+func (s *NodeService) updateScene(id uint, name string, x, y, width float64) (*models.Scene, error) {
+	var sc models.Scene
 	if err := activeScenes(s.db).First(&sc, id).Error; err != nil {
 		return nil, errors.New("节点不存在")
 	}
@@ -90,7 +90,7 @@ func (s *NodeService) updateScene(id uint, name string, x, y, width float64) (*m
 // Delete only the ordinary subtree; immutable resources remain available to undo.
 func (s *NodeService) DeleteScene(id uint) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		var sc models.HtmlScene
+		var sc models.Scene
 		if err := activeScenes(tx).First(&sc, id).Error; err != nil {
 			return errors.New("节点不存在")
 		}
@@ -132,24 +132,24 @@ func (s *NodeService) DeleteScene(id uint) error {
 				hashes = append(hashes, n.Hash)
 			}
 		}
-		if err := tx.Where("scene_id IN ? OR export_hash IN ?", ids, hashes).Delete(&models.Node{}).Error; err != nil {
+		if err := tx.Where("scene_id IN ? OR export_hash IN ?", ids, hashes).Delete(&models.Port{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("id IN ?", ids).Delete(&models.HtmlScene{}).Error; err != nil {
+		if err := tx.Where("id IN ?", ids).Delete(&models.Scene{}).Error; err != nil {
 			return err
 		}
 		var first int64
-		tx.Model(&models.HtmlScene{}).Where("canvas_id = ? AND is_first = ?", sc.CanvasID, true).Count(&first)
+		tx.Model(&models.Scene{}).Where("canvas_id = ? AND is_first = ?", sc.CanvasID, true).Count(&first)
 		if first == 0 {
-			if err := tx.Model(&models.HtmlScene{}).Where("canvas_id = ? AND is_root = ?", sc.CanvasID, true).Update("is_first", true).Error; err != nil {
+			if err := tx.Model(&models.Scene{}).Where("canvas_id = ? AND is_root = ?", sc.CanvasID, true).Update("is_first", true).Error; err != nil {
 				return err
 			}
 		}
 		return normalize(tx, sc.CanvasID)
 	})
 }
-func (s *NodeService) UpdateNode(id uint, name string, ending, targetKind *string, showOption *bool) (*models.Node, error) {
-	var p models.Node
+func (s *NodeService) UpdateNode(id uint, name string, ending, targetKind *string, showOption *bool) (*models.Port, error) {
+	var p models.Port
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if err := activePorts(tx).First(&p, id).Error; err != nil {
 			return errors.New("出端口不存在")
@@ -177,14 +177,14 @@ func (s *NodeService) UpdateNode(id uint, name string, ending, targetKind *strin
 	return &p, err
 }
 func (s *NodeService) DeleteNode(id uint) error {
-	var p models.Node
+	var p models.Port
 	if err := activePorts(s.db).First(&p, id).Error; err != nil {
 		return errors.New("出端口不存在")
 	}
 	if p.Magic {
 		return s.BreakConnection(id)
 	}
-	var target models.HtmlScene
+	var target models.Scene
 	if err := activeScenes(s.db).Where("hash = ?", p.ExportHash).First(&target).Error; err != nil {
 		return err
 	}
@@ -192,14 +192,14 @@ func (s *NodeService) DeleteNode(id uint) error {
 }
 func (s *NodeService) BreakConnection(id uint) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		var p models.Node
+		var p models.Port
 		if err := activePorts(tx).First(&p, id).Error; err != nil {
 			return err
 		}
 		if !p.Magic {
 			return errors.New("普通分支不能悬空，请修改上一节点移动分支，或删除分支")
 		}
-		var sc models.HtmlScene
+		var sc models.Scene
 		if err := activeScenes(tx).First(&sc, p.SceneID).Error; err != nil {
 			return err
 		}
@@ -211,8 +211,8 @@ func (s *NodeService) BreakConnection(id uint) error {
 }
 func (s *NodeService) RedirectNode(id uint, hash, side string) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		var p models.Node
-		var from, to models.HtmlScene
+		var p models.Port
+		var from, to models.Scene
 		if err := activePorts(tx).First(&p, id).Error; err != nil {
 			return err
 		}
@@ -235,13 +235,13 @@ func (s *NodeService) RedirectNode(id uint, hash, side string) error {
 		return normalize(tx, from.CanvasID)
 	})
 }
-func (s *NodeService) SetFirstScene(id uint) (*models.HtmlScene, error) {
-	var sc models.HtmlScene
+func (s *NodeService) SetFirstScene(id uint) (*models.Scene, error) {
+	var sc models.Scene
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if err := activeScenes(tx).First(&sc, id).Error; err != nil {
 			return err
 		}
-		if err := tx.Model(&models.HtmlScene{}).Where("canvas_id = ?", sc.CanvasID).Update("is_first", false).Error; err != nil {
+		if err := tx.Model(&models.Scene{}).Where("canvas_id = ?", sc.CanvasID).Update("is_first", false).Error; err != nil {
 			return err
 		}
 		sc.IsFirst = true
@@ -249,43 +249,43 @@ func (s *NodeService) SetFirstScene(id uint) (*models.HtmlScene, error) {
 	})
 	return &sc, err
 }
-func (s *NodeService) CreateInitialScene(canvasID uint) (*models.HtmlScene, error) {
-	var sc *models.HtmlScene
+func (s *NodeService) CreateInitialScene(canvasID uint) (*models.Scene, error) {
+	var sc *models.Scene
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var canvas models.Canvas
 		if err := tx.First(&canvas, canvasID).Error; err != nil {
 			return err
 		}
 		var count int64
-		if err := tx.Model(&models.HtmlScene{}).Where("canvas_id = ?", canvasID).Count(&count).Error; err != nil {
+		if err := tx.Model(&models.Scene{}).Where("canvas_id = ?", canvasID).Count(&count).Error; err != nil {
 			return err
 		}
 		if count > 0 {
 			return nil
 		}
 		hash := NewHash()
-		sc = &models.HtmlScene{CanvasID: canvasID, Hash: hash, AssetDir: hash, Name: "初始节点", Level: 1, IsRoot: true, IsFirst: true}
+		sc = &models.Scene{CanvasID: canvasID, Hash: hash, AssetDir: hash, Name: "初始节点", Level: 1, IsRoot: true, IsFirst: true}
 		return tx.Create(sc).Error
 	})
 	return sc, err
 }
-func nextPort(tx *gorm.DB, sc models.HtmlScene, target string, magic bool) models.Node {
+func nextPort(tx *gorm.DB, sc models.Scene, target string, magic bool) models.Port {
 	var count int64
-	tx.Model(&models.Node{}).Where("scene_id = ?", sc.ID).Count(&count)
+	tx.Model(&models.Port{}).Where("scene_id = ?", sc.ID).Count(&count)
 	var max int
-	tx.Model(&models.Node{}).Where("scene_id = ?", sc.ID).Select("COALESCE(MAX(sort_order), 0)").Scan(&max)
-	return models.Node{Hash: NewHash(), Name: fmt.Sprintf("选项 %d", count+1), SceneID: sc.ID, ExportHash: target, Magic: magic, ShowOption: true, TargetKind: "mp4", SortOrder: max + 1}
+	tx.Model(&models.Port{}).Where("scene_id = ?", sc.ID).Select("COALESCE(MAX(sort_order), 0)").Scan(&max)
+	return models.Port{Hash: NewHash(), Name: fmt.Sprintf("选项 %d", count+1), SceneID: sc.ID, ExportHash: target, Magic: magic, ShowOption: true, TargetKind: "mp4", SortOrder: max + 1}
 }
-func (s *NodeService) CreateNextNode(sceneID uint) (*models.HtmlScene, *models.Node, *models.Node, error) {
-	var sc models.HtmlScene
-	var p models.Node
+func (s *NodeService) CreateNextNode(sceneID uint) (*models.Scene, *models.Port, *models.Port, error) {
+	var sc models.Scene
+	var p models.Port
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		var parent models.HtmlScene
+		var parent models.Scene
 		if err := activeScenes(tx).First(&parent, sceneID).Error; err != nil {
 			return err
 		}
 		hash := NewHash()
-		sc = models.HtmlScene{CanvasID: parent.CanvasID, Hash: hash, AssetDir: hash, Name: "新节点", Level: parent.Level + 1}
+		sc = models.Scene{CanvasID: parent.CanvasID, Hash: hash, AssetDir: hash, Name: "新节点", Level: parent.Level + 1}
 		if err := tx.Create(&sc).Error; err != nil {
 			return err
 		}
@@ -297,10 +297,10 @@ func (s *NodeService) CreateNextNode(sceneID uint) (*models.HtmlScene, *models.N
 	})
 	return &sc, &p, nil, err
 }
-func (s *NodeService) CreateMagicPort(sceneID uint, hash string) (*models.Node, *models.Node, error) {
-	var p models.Node
+func (s *NodeService) CreateMagicPort(sceneID uint, hash string) (*models.Port, *models.Port, error) {
+	var p models.Port
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		var from, to models.HtmlScene
+		var from, to models.Scene
 		if err := activeScenes(tx).First(&from, sceneID).Error; err != nil {
 			return err
 		}
@@ -317,8 +317,8 @@ func (s *NodeService) CreateMagicPort(sceneID uint, hash string) (*models.Node, 
 }
 
 // Every upload is immutable, allowing snapshots to restore earlier content.
-func (s *NodeService) saveContent(id uint, r io.Reader, ext string) (*models.HtmlScene, error) {
-	var scene *models.HtmlScene
+func (s *NodeService) saveContent(id uint, r io.Reader, ext string) (*models.Scene, error) {
+	var scene *models.Scene
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var err error
 		scene, err = NewNodeService(tx).saveContentTx(id, r, ext)
@@ -326,8 +326,8 @@ func (s *NodeService) saveContent(id uint, r io.Reader, ext string) (*models.Htm
 	})
 	return scene, err
 }
-func (s *NodeService) saveContentTx(id uint, r io.Reader, ext string) (*models.HtmlScene, error) {
-	var sc models.HtmlScene
+func (s *NodeService) saveContentTx(id uint, r io.Reader, ext string) (*models.Scene, error) {
+	var sc models.Scene
 	var canvas models.Canvas
 	if err := activeScenes(s.db).First(&sc, id).Error; err != nil {
 		return nil, err
@@ -365,10 +365,10 @@ func (s *NodeService) saveContentTx(id uint, r io.Reader, ext string) (*models.H
 	}
 	return &sc, nil
 }
-func (s *NodeService) SaveSceneVideo(id uint, r io.Reader) (*models.HtmlScene, error) {
+func (s *NodeService) SaveSceneVideo(id uint, r io.Reader) (*models.Scene, error) {
 	return s.saveContent(id, r, ".mp4")
 }
-func (s *NodeService) UpdateSceneHTML(id uint, data []byte) (*models.HtmlScene, error) {
+func (s *NodeService) UpdateSceneHTML(id uint, data []byte) (*models.Scene, error) {
 	return s.saveContent(id, strings.NewReader(string(data)), ".html")
 }
 
@@ -382,7 +382,7 @@ func (s *NodeService) CopyProperties(id, sourceID uint, snapshot CanvasView) err
 		if !hmac.Equal([]byte(token), []byte(snapshot.Token)) {
 			return errors.New("复制的属性无效")
 		}
-		var dst models.HtmlScene
+		var dst models.Scene
 		if err := activeScenes(tx).First(&dst, id).Error; err != nil {
 			return err
 		}
@@ -404,5 +404,5 @@ func activeScenes(db *gorm.DB) *gorm.DB {
 	return db.Where("canvas_id IN (?)", db.Model(&models.Canvas{}).Select("id"))
 }
 func activePorts(db *gorm.DB) *gorm.DB {
-	return db.Where("scene_id IN (?)", activeScenes(db).Model(&models.HtmlScene{}).Select("id"))
+	return db.Where("scene_id IN (?)", activeScenes(db).Model(&models.Scene{}).Select("id"))
 }

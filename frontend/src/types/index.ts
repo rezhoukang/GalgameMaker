@@ -28,7 +28,7 @@ export interface Canvas {
 }
 
 // HTML 框：制作者做好的一个 HTML，位于画布上，内含多个节点
-export interface HtmlScene {
+export interface Scene {
   level: number
   portNum: number
   isRoot: boolean
@@ -50,7 +50,7 @@ export interface HtmlScene {
 
 // 节点（端口）：属于某个 HTML 框，坐标相对框内。
 // 后端仅返回出端口；前端按 exportHash 生成负 ID 的入端口。
-export interface NodeItem {
+export interface PortItem {
   exportHash: string
   showOption: boolean
   sortOrder: number
@@ -68,8 +68,8 @@ export interface NodeItem {
 export interface CanvasView {
   canvasId: number
   token: string
-  scenes: HtmlScene[]
-  nodes: NodeItem[]
+  scenes: Scene[]
+  nodes: PortItem[]
 }
 
 // 导出结果

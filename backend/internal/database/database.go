@@ -41,8 +41,8 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 		&models.Config{},
 		&models.Folder{},
 		&models.Canvas{},
-		&models.HtmlScene{},
-		&models.Node{},
+		&models.Scene{},
+		&models.Port{},
 	); err != nil {
 		return nil, err
 	}

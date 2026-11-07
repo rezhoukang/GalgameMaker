@@ -4,7 +4,7 @@ import { useCanvasStore } from '@/store/canvas'
 import { useAppStore } from '@/store/app'
 import HtmlBox from './HtmlBox.vue'
 import AppIcon from './AppIcon.vue'
-import type { HtmlScene, NodeItem } from '@/types'
+import type { Scene, PortItem } from '@/types'
 import {
   BALL_R,
   CURVE_MIN_BEND,
@@ -147,7 +147,7 @@ interface Line {
   color: string
 }
 // 可见场景：从根 BFS，折叠节点的子树不渲染（边 = 出端口 → 配对入端口所在场景）
-const visibleScenes = computed<HtmlScene[]>(() => {
+const visibleScenes = computed<Scene[]>(() => {
   const parentOf = new Map<number, number>()
   const kidsOf = new Map<number, number[]>()
   for (const n of store.nodes) {
@@ -159,7 +159,7 @@ const visibleScenes = computed<HtmlScene[]>(() => {
     if (list) list.push(pair.sceneId)
     else kidsOf.set(n.sceneId, [pair.sceneId])
   }
-  const visible: HtmlScene[] = []
+  const visible: Scene[] = []
   const seen = new Set<number>()
   const queue = store.scenes.filter((sc) => !parentOf.has(sc.id)).map((sc) => sc.id)
   while (queue.length > 0) {

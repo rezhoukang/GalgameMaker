@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
-import type { NodeItem } from '@/types'
+import type { PortItem } from '@/types'
 
 const props = defineProps<{
-  node?: NodeItem
+  node?: PortItem
   pos: { left: number; top: number } // 相对节点的定位（球心对齐 ballWorld）
   addSceneId?: number | null // 非空：渲染为「新增出端口」十字球（当作一个出端口）
 }>()

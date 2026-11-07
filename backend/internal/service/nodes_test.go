@@ -18,7 +18,7 @@ type fixture struct {
 	tree   *TreeService
 	cfg    *config.Config
 	canvas *models.Canvas
-	root   *models.HtmlScene
+	root   *models.Scene
 }
 
 func setup(t *testing.T) fixture {
@@ -47,7 +47,7 @@ func setup(t *testing.T) fixture {
 	}
 	return fixture{db, nodes, tree, cfg, canvas, root}
 }
-func (f fixture) child(t *testing.T, id uint) (*models.HtmlScene, *models.Node) {
+func (f fixture) child(t *testing.T, id uint) (*models.Scene, *models.Port) {
 	t.Helper()
 	s, p, _, err := f.nodes.CreateNextNode(id)
 	if err != nil {
@@ -96,7 +96,7 @@ func TestMoveSubtreeRecalculatesDepth(t *testing.T) {
 	if err := f.nodes.RedirectNode(p.ID, a.Hash, "prev"); err != nil {
 		t.Fatal(err)
 	}
-	var restored models.HtmlScene
+	var restored models.Scene
 	f.db.First(&restored, c.ID)
 	if restored.Level != 4 {
 		t.Fatalf("level=%d", restored.Level)
@@ -178,7 +178,7 @@ func TestContentVersionsAndCopy(t *testing.T) {
 	if err := f.nodes.CopyProperties(target.ID, f.root.ID, *copied); err != nil {
 		t.Fatal(err)
 	}
-	var dst models.HtmlScene
+	var dst models.Scene
 	f.db.First(&dst, target.ID)
 	if dst.Video != old.Video || dst.Hash != target.Hash || dst.IsRoot {
 		t.Fatal("paste did not use captured properties or overwrote identity")
@@ -194,7 +194,7 @@ func TestContentVersionsAndCopy(t *testing.T) {
 	if _, err := f.nodes.Restore(f.canvas.ID, current.Token, *copied); err != nil {
 		t.Fatal(err)
 	}
-	var root models.HtmlScene
+	var root models.Scene
 	f.db.First(&root, f.root.ID)
 	if root.Video != old.Video {
 		t.Fatal("undo failed to restore video")
@@ -217,7 +217,7 @@ func TestCrossCanvasAndStartIsolation(t *testing.T) {
 	if _, err := f.nodes.SetFirstScene(a.ID); err != nil {
 		t.Fatal(err)
 	}
-	var check models.HtmlScene
+	var check models.Scene
 	f.db.First(&check, root.ID)
 	if !check.IsFirst {
 		t.Fatal("other project's start was cleared")

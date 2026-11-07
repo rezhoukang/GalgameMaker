@@ -64,8 +64,8 @@ func TestDeletedCanvasRetainsDataAndRejectsAccess(t *testing.T) {
 			}
 		})
 	}
-	var scenes []models.HtmlScene
-	var ports []models.Node
+	var scenes []models.Scene
+	var ports []models.Port
 	f.db.Where("canvas_id = ?", f.canvas.ID).Find(&scenes)
 	f.db.Order("sort_order, id").Find(&ports)
 	if len(scenes) != len(before.Scenes) || len(ports) != len(before.Nodes) {
