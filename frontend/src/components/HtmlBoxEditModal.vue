@@ -118,7 +118,7 @@ async function del() {
           <input ref="htmlInput" type="file" accept=".html,.htm" style="display:none" @change="onHtmlPick" />
           <button class="btn" :disabled="store.busy" @click="videoInput?.click()"><AppIcon name="upload" :size="14" /> 导入 MP4</button>
           <button class="btn" :disabled="store.busy" @click="htmlInput?.click()"><AppIcon name="upload" :size="14" /> 导入 HTML</button>
-          <span class="video-name">{{ scene?.htmlPath ? '已导入内容' : '未导入内容' }}</span>
+          <span class="video-name">{{ scene?.contentPath ? '已导入内容' : '未导入内容' }}</span>
         </div>
         <p class="content-tip">重新导入会替换当前内容，可撤回。视频结束后显示选项；纯页面点击“继续”。</p>
         <p class="content-tip">HTML 请使用资源已内嵌的单文件，或引用在线资源。</p>

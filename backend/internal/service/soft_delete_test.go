@@ -27,7 +27,7 @@ func TestDeletedCanvasRetainsDataAndRejectsAccess(t *testing.T) {
 	if err := f.db.Unscoped().First(&stored, f.canvas.ID).Error; err != nil || !stored.DeleteAt.Valid {
 		t.Fatal("project was not soft deleted", err)
 	}
-	if _, err := os.Stat(filepath.Join(filepath.Dir(htmlPath(stored, *media)), "video.mp4")); err != nil {
+	if _, err := os.Stat(filepath.Join(filepath.Dir(contentPath(stored, *media)), "video.mp4")); err != nil {
 		t.Fatal("media lost", err)
 	}
 	tree, err := f.tree.GetTree()
@@ -126,7 +126,7 @@ func TestFolderSoftDeleteCascadeAndRetainedPaths(t *testing.T) {
 	if moved.Path == canvas.Path {
 		t.Fatal("deleted child path not updated")
 	}
-	if _, err := os.Stat(filepath.Join(filepath.Dir(htmlPath(moved, *media)), "video.mp4")); err != nil {
+	if _, err := os.Stat(filepath.Join(filepath.Dir(contentPath(moved, *media)), "video.mp4")); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.tree.DeleteItem("folder", parentID); err != nil {

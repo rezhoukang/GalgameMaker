@@ -29,7 +29,7 @@ export interface Canvas {
 
 // 剧情节点，对应数据库 nodes 表，可关联视频或 HTML 内容。
 export interface Node {
-  htmlPath: string // 节点 HTML 相对于工程目录的路径；空串表示未导入内容
+  contentPath: string // 节点内容入口相对于工程目录的路径（当前为 HTML 页面）；空串表示未导入内容
   level: number // 普通树层级，根节点为 1，不计魔法连接
   id: number // 剧情节点 ID，对应 nodes.id
   canvasId: number // 所属工程 ID，对应 canvas.id

@@ -149,7 +149,7 @@ func TestHiddenPortRestoreAndSnapshotGuards(t *testing.T) {
 	encoded, _ := json.Marshal(before)
 	var tampered CanvasView
 	json.Unmarshal(encoded, &tampered)
-	tampered.Scenes[0].HTMLPath = "../../outside"
+	tampered.Scenes[0].ContentPath = "../../outside"
 	if _, err := f.nodes.Restore(f.canvas.ID, after.Token, tampered); err == nil {
 		t.Fatal("tampered snapshot accepted")
 	}
@@ -172,7 +172,7 @@ func TestContentVersionsAndCopy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if old.HTMLPath == newer.HTMLPath {
+	if old.ContentPath == newer.ContentPath {
 		t.Fatal("upload overwrote old content")
 	}
 	if err := f.nodes.CopyProperties(target.ID, f.root.ID, *copied); err != nil {
@@ -180,13 +180,13 @@ func TestContentVersionsAndCopy(t *testing.T) {
 	}
 	var dst models.Node
 	f.db.First(&dst, target.ID)
-	if dst.HTMLPath != old.HTMLPath || dst.Hash != target.Hash || dst.Level == 1 {
+	if dst.ContentPath != old.ContentPath || dst.Hash != target.Hash || dst.Level == 1 {
 		t.Fatal("paste did not use captured properties or overwrote identity")
 	}
 	if err := f.nodes.DeleteScene(target.ID); err != nil {
 		t.Fatal(err)
 	}
-	bytes, err := os.ReadFile(filepath.Join(filepath.Dir(htmlPath(*f.canvas, *old)), "video.mp4"))
+	bytes, err := os.ReadFile(filepath.Join(filepath.Dir(contentPath(*f.canvas, *old)), "video.mp4"))
 	if err != nil || string(bytes) != "old video" {
 		t.Fatal("undo resources were destroyed")
 	}
@@ -196,7 +196,7 @@ func TestContentVersionsAndCopy(t *testing.T) {
 	}
 	var root models.Node
 	f.db.First(&root, f.root.ID)
-	if root.HTMLPath != old.HTMLPath {
+	if root.ContentPath != old.ContentPath {
 		t.Fatal("undo failed to restore video")
 	}
 }
@@ -296,7 +296,7 @@ func TestFolderRenameKeepsNestedResources(t *testing.T) {
 	f.db.First(&moved, folder.ID)
 	var movedCanvas models.Canvas
 	f.db.First(&movedCanvas, canvas.ID)
-	if !strings.Contains(moved.Path, "renamed") || !hasFile(filepath.Join(filepath.Dir(htmlPath(movedCanvas, *root)), "video.mp4")) {
+	if !strings.Contains(moved.Path, "renamed") || !hasFile(filepath.Join(filepath.Dir(contentPath(movedCanvas, *root)), "video.mp4")) {
 		t.Fatal("nested paths not updated")
 	}
 	if _, err := f.tree.CreateFolder(&parentID, "nested"); err == nil {

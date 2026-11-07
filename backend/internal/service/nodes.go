@@ -16,11 +16,11 @@ type NodeService struct{ db *gorm.DB }
 
 func NewNodeService(db *gorm.DB) *NodeService { return &NodeService{db: db} }
 func sceneStem(name string) string            { return strings.TrimSuffix(name, filepath.Ext(name)) }
-func htmlPath(c models.Canvas, s models.Node) string {
-	if s.HTMLPath == "" {
+func contentPath(c models.Canvas, s models.Node) string {
+	if s.ContentPath == "" {
 		return ""
 	}
-	return filepath.Join(c.Path, filepath.FromSlash(s.HTMLPath))
+	return filepath.Join(c.Path, filepath.FromSlash(s.ContentPath))
 }
 func graph(tx *gorm.DB, canvasID uint) ([]models.Node, []models.Port, error) {
 	var canvas models.Canvas
@@ -352,7 +352,7 @@ func (s *NodeService) saveContentTx(id uint, r io.Reader, ext string) (*models.N
 			return nil, err
 		}
 	}
-	sc.HTMLPath = filepath.ToSlash(filepath.Join(dir, "index.html"))
+	sc.ContentPath = filepath.ToSlash(filepath.Join(dir, "index.html"))
 
 	if err := s.db.Save(&sc).Error; err != nil {
 		return nil, err
@@ -385,7 +385,7 @@ func (s *NodeService) CopyProperties(id, sourceID uint, snapshot CanvasView) err
 		}
 		for _, src := range snapshot.Scenes {
 			if src.ID == sourceID {
-				dst.HTMLPath = src.HTMLPath
+				dst.ContentPath = src.ContentPath
 				return tx.Save(&dst).Error
 			}
 		}

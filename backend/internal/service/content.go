@@ -20,10 +20,10 @@ var contentBridge string
 // Each immutable content version owns its HTML and companion resources.
 // Never export an entire project or follow links outside the content directory.
 func contentFiles(canvas models.Canvas, node models.Node) ([]string, error) {
-	if node.HTMLPath == "" {
+	if node.ContentPath == "" {
 		return nil, fmt.Errorf("请导入视频或 HTML 页面后导出")
 	}
-	rel := filepath.FromSlash(node.HTMLPath)
+	rel := filepath.FromSlash(node.ContentPath)
 	if !filepath.IsLocal(rel) || filepath.Base(rel) != "index.html" {
 		return nil, fmt.Errorf("节点页面路径无效")
 	}
@@ -31,14 +31,14 @@ func contentFiles(canvas models.Canvas, node models.Node) ([]string, error) {
 	if len(parts) != 3 || parts[0] != ".content" || parts[1] == "" || parts[1] == "." || parts[1] == ".." {
 		return nil, fmt.Errorf("节点页面必须位于独立内容目录")
 	}
-	for _, dir := range []string{filepath.Join(canvas.Path, ".content"), filepath.Dir(htmlPath(canvas, node))} {
+	for _, dir := range []string{filepath.Join(canvas.Path, ".content"), filepath.Dir(contentPath(canvas, node))} {
 		info, err := os.Lstat(dir)
 		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 			return nil, fmt.Errorf("节点内容目录不存在或不是普通目录")
 		}
 	}
 	files := []string{}
-	err := filepath.WalkDir(filepath.Dir(htmlPath(canvas, node)), func(path string, entry fs.DirEntry, err error) error {
+	err := filepath.WalkDir(filepath.Dir(contentPath(canvas, node)), func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -65,15 +65,15 @@ func contentFiles(canvas models.Canvas, node models.Node) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !hasFile(htmlPath(canvas, node)) {
+	if !hasFile(contentPath(canvas, node)) {
 		return nil, fmt.Errorf("请导入视频或 HTML 页面后导出")
 	}
-	data, err := os.ReadFile(htmlPath(canvas, node))
+	data, err := os.ReadFile(contentPath(canvas, node))
 	if err != nil {
 		return nil, err
 	}
 	// Generated video pages always reference their own companion file.
-	if string(data) == videoPage && !hasFile(filepath.Join(filepath.Dir(htmlPath(canvas, node)), "video.mp4")) {
+	if string(data) == videoPage && !hasFile(filepath.Join(filepath.Dir(contentPath(canvas, node)), "video.mp4")) {
 		return nil, fmt.Errorf("节点页面引用的视频文件不存在")
 	}
 	return files, nil

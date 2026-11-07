@@ -14,7 +14,7 @@ func TestHTMLContentReplacementUndoAndExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(htmlPath(*f.canvas, *video))
+	data, err := os.ReadFile(contentPath(*f.canvas, *video))
 	if err != nil || !strings.Contains(string(data), `src="video.mp4"`) {
 		t.Fatal("video HTML was not created", err)
 	}
@@ -34,7 +34,7 @@ func TestHTMLContentReplacementUndoAndExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if page.HTMLPath == video.HTMLPath {
+	if page.ContentPath == video.ContentPath {
 		t.Fatal("content replacement reused immutable path")
 	}
 	current := f.view(t)
@@ -53,7 +53,7 @@ func TestHTMLContentReplacementUndoAndExport(t *testing.T) {
 			t.Fatalf("missing export file: %s", file)
 		}
 	}
-	pageData, err := os.ReadFile(filepath.Join(result.OutputDir, "dist", page.HTMLPath))
+	pageData, err := os.ReadFile(filepath.Join(result.OutputDir, "dist", page.ContentPath))
 	if err != nil || !strings.Contains(string(pageData), "galgame-content") || !strings.Contains(string(pageData), "New page") {
 		t.Fatal("HTML or playback bridge missing", err)
 	}
@@ -61,10 +61,10 @@ func TestHTMLContentReplacementUndoAndExport(t *testing.T) {
 	if _, err := f.nodes.Restore(f.canvas.ID, current.Token, *before); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.view(t).Scenes[0].HTMLPath; got != video.HTMLPath {
+	if got := f.view(t).Scenes[0].ContentPath; got != video.ContentPath {
 		t.Fatal("undo did not restore video page")
 	}
-	if !hasFile(filepath.Join(filepath.Dir(htmlPath(*f.canvas, *video)), "video.mp4")) {
+	if !hasFile(filepath.Join(filepath.Dir(contentPath(*f.canvas, *video)), "video.mp4")) {
 		t.Fatal("video resource lost after replacement and undo")
 	}
 }
@@ -75,7 +75,7 @@ func TestContentValidationMissingVideoAndUnsafePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(filepath.Join(filepath.Dir(htmlPath(*f.canvas, *video)), "video.mp4")); err != nil {
+	if err := os.Remove(filepath.Join(filepath.Dir(contentPath(*f.canvas, *video)), "video.mp4")); err != nil {
 		t.Fatal(err)
 	}
 	issues, err := f.nodes.CheckCanvas(f.canvas.ID)
@@ -83,7 +83,7 @@ func TestContentValidationMissingVideoAndUnsafePath(t *testing.T) {
 		t.Fatal("missing companion video accepted", issues, err)
 	}
 	for _, path := range []string{"../index.html", "index.html", ".content/../index.html"} {
-		video.HTMLPath = path
+		video.ContentPath = path
 		if _, err := contentFiles(*f.canvas, *video); err == nil {
 			t.Fatalf("unsafe export path accepted: %s", path)
 		}

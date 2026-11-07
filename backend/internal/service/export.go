@@ -93,8 +93,8 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 	}
 	copied := map[string]bool{}
 	for _, sc := range scenes {
-		r := &SceneRes{Name: sc.Name, Hash: sc.Hash, HTML: sc.HTMLPath, Options: []LinkInfo{}}
-		if !copied[sc.HTMLPath] {
+		r := &SceneRes{Name: sc.Name, Hash: sc.Hash, HTML: sc.ContentPath, Options: []LinkInfo{}}
+		if !copied[sc.ContentPath] {
 			files, err := contentFiles(canvas, sc)
 			if err != nil {
 				return nil, err
@@ -104,7 +104,7 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 				if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
 					return nil, err
 				}
-				if rel == sc.HTMLPath {
+				if rel == sc.ContentPath {
 					data, err := os.ReadFile(src)
 					if err != nil {
 						return nil, err
@@ -121,7 +121,7 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 				}
 				result.Files = append(result.Files, filepath.ToSlash(filepath.Join("dist", rel)))
 			}
-			copied[sc.HTMLPath] = true
+			copied[sc.ContentPath] = true
 		}
 		for _, p := range ports {
 			if p.NodeID == sc.ID {
