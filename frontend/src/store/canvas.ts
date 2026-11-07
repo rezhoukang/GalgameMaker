@@ -331,7 +331,7 @@ export const useCanvasStore = defineStore('canvas', {
     },
 
     renameNode(id: number, name: string) { return this.edit(() => api.updateNode(Math.abs(id), {name}), '已保存') },
-    async saveNode(id: number, data: {name: string; endingContent: string; targetKind?: string; showOption?: boolean}) {
+    async saveNode(id: number, data: {name: string; targetKind?: string; showOption?: boolean}) {
       const ok = await this.edit(() => api.updateNode(Math.abs(id), data), '已保存')
       if (ok) this.editingNode = null
       return ok

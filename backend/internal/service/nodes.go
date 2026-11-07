@@ -145,7 +145,7 @@ func (s *NodeService) DeleteScene(id uint) error {
 		return normalize(tx, sc.CanvasID)
 	})
 }
-func (s *NodeService) UpdateNode(id uint, name string, ending, targetKind *string, showOption *bool) (*models.Port, error) {
+func (s *NodeService) UpdateNode(id uint, name string, targetKind *string, showOption *bool) (*models.Port, error) {
 	var p models.Port
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if err := activePorts(tx).First(&p, id).Error; err != nil {
@@ -156,9 +156,6 @@ func (s *NodeService) UpdateNode(id uint, name string, ending, targetKind *strin
 			if p.Name == "" {
 				return errors.New("选项内容不能为空")
 			}
-		}
-		if ending != nil {
-			p.EndingContent = *ending
 		}
 		if targetKind != nil {
 			p.TargetKind = *targetKind

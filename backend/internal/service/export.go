@@ -47,7 +47,6 @@ type SceneRes struct {
 	HTML    string     `json:"html"` // dist 内相对文件名，空=无 HTML
 	MP4s    []string   `json:"mp4s"` // dist 内相对文件名列表（多个视频）
 	Options []LinkInfo `json:"options"`
-	Ending  string     `json:"ending"`
 }
 
 // Export 把指定画布的故事树导出为单页播放器 index.html + dist 资源目录。
@@ -117,9 +116,6 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 			if p.SceneID == sc.ID {
 				r.Options = append(r.Options, LinkInfo{Label: p.Name, TargetID: byHash[p.ExportHash], TargetKind: p.TargetKind, ShowOption: p.ShowOption})
 			}
-			if p.ExportHash == sc.Hash && p.EndingContent != "" {
-				r.Ending = p.EndingContent
-			}
 		}
 		res[sc.ID] = r
 	}
@@ -164,8 +160,8 @@ body{background:#000;font-family:'Microsoft YaHei',sans-serif;overflow:hidden}
 .opt:hover{transform:translateY(-2px);background:rgba(46,46,52,.9)}
 #next{position:fixed;right:20px;bottom:42px;display:none;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.25);padding:12px 26px;font-size:15px;font-weight:700;border-radius:10px;cursor:pointer;z-index:10}
 #next:hover{background:rgba(46,46,52,.95)}
-#ending{position:fixed;inset:0;background:#000;z-index:8;display:none;align-items:center;justify-content:center;padding:48px}
-#ending-text{color:#fff;font-size:26px;line-height:1.9;text-align:center;max-width:680px;white-space:pre-wrap}
+#playback-error{position:fixed;inset:0;background:#000;z-index:8;display:none;align-items:center;justify-content:center;padding:48px}
+#playback-error-text{color:#fff;font-size:26px;line-height:1.9;text-align:center;max-width:680px;white-space:pre-wrap}
 #start-wrap{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(1200px 600px at 50%% -10%%,#1c1c28,#0e0e14 60%%)}
 #start-wrap h1{color:#fff;font-size:40px;letter-spacing:2px}
 #start-wrap .sub{color:#777;font-size:14px}
@@ -184,7 +180,7 @@ body{background:#000;font-family:'Microsoft YaHei',sans-serif;overflow:hidden}
 <button id="restart" type="button">↺ 重来</button>
 <div id="opts"></div>
 <button id="next" type="button">继续 ▸</button>
-<div id="ending"><div id="ending-text"></div></div>
+<div id="playback-error"><div id="playback-error-text"></div></div>
 <script type="application/json" id="story-data">%s</script>
 <script>
 var DATA = JSON.parse(document.getElementById('story-data').textContent);
@@ -210,8 +206,8 @@ var video = document.getElementById('video');
 var page = document.getElementById('page');
 var optsBox = document.getElementById('opts');
 var nextBtn = document.getElementById('next');
-var ending = document.getElementById('ending');
-var endingText = document.getElementById('ending-text');
+var playbackError = document.getElementById('playback-error');
+var playbackErrorText = document.getElementById('playback-error-text');
 var restartBtn = document.getElementById('restart');
 var muteBtn = document.getElementById('mute');
 var volBar = document.getElementById('vol');
@@ -230,7 +226,7 @@ function hideAll(){
   page.style.display = 'none';
   optsBox.style.display = 'none';
   nextBtn.style.display = 'none';
-  ending.style.display = 'none';
+  playbackError.style.display = 'none';
   restartBtn.style.display = 'none';
   video.pause();
 }
@@ -255,8 +251,8 @@ function playVideo(src){
   video.play().catch(function(){});
   video.onended = afterContent;
   video.onerror = function(){
-    hideAll(); endingText.textContent = '视频无法播放，请检查文件或视频编码。';
-    ending.style.display = 'flex'; restartBtn.style.display = 'block';
+    hideAll(); playbackErrorText.textContent = '视频无法播放，请检查文件或视频编码。';
+    playbackError.style.display = 'flex'; restartBtn.style.display = 'block';
   };
 }
 
@@ -284,10 +280,8 @@ function afterContent(){
       optsBox.appendChild(btn);
     });
     optsBox.style.display = 'flex';
-  } else {
-    endingText.textContent = sc.ending || '';
-    ending.style.display = 'flex';
   }
+  // 没有出口时保留当前视频末帧或 HTML 内容，结局由素材本身承载。
 }
 
 nextBtn.addEventListener('click', afterContent);

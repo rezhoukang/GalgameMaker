@@ -135,11 +135,11 @@ func TestHiddenPortRestoreAndSnapshotGuards(t *testing.T) {
 	f := setup(t)
 	_, p := f.child(t, f.root.ID)
 	hidden := false
-	if _, err := f.nodes.UpdateNode(p.ID, "", nil, nil, &hidden); err != nil {
+	if _, err := f.nodes.UpdateNode(p.ID, "", nil, &hidden); err != nil {
 		t.Fatal(err)
 	}
 	before := f.view(t)
-	if _, err := f.nodes.UpdateNode(p.ID, "changed", nil, nil, nil); err != nil {
+	if _, err := f.nodes.UpdateNode(p.ID, "changed", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	after := f.view(t)
@@ -237,7 +237,7 @@ func TestExportValidationAndRoutes(t *testing.T) {
 	}
 	kind := "html"
 	hidden := false
-	if _, err := f.nodes.UpdateNode(p.ID, "", nil, &kind, &hidden); err != nil {
+	if _, err := f.nodes.UpdateNode(p.ID, "", &kind, &hidden); err != nil {
 		t.Fatal(err)
 	}
 	exporter := NewExportService(f.db, NewSettingsService(f.db, f.cfg))
@@ -253,7 +253,7 @@ func TestExportValidationAndRoutes(t *testing.T) {
 		t.Fatal("routes or hidden option absent")
 	}
 	_, q := f.child(t, f.root.ID)
-	if _, err := f.nodes.UpdateNode(q.ID, "", nil, &kind, nil); err != nil {
+	if _, err := f.nodes.UpdateNode(q.ID, "", &kind, nil); err != nil {
 		t.Fatal(err)
 	}
 	issues, err = f.nodes.CheckCanvas(f.canvas.ID)

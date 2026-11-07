@@ -21,17 +21,12 @@ const primary = computed(() => {
 const isPaired = computed(() => !!pairInfo.value)
 
 const name = ref(primary.value.name)
-const ending = ref(primary.value.endingContent ?? '')
 const showOption = ref(primary.value.showOption)
 const kind = ref(primary.value.targetKind === 'html' ? 'html' : 'mp4')
 
 watch(
   () => primary.value?.name,
   (v) => (name.value = v ?? '')
-)
-watch(
-  () => primary.value?.endingContent,
-  (v) => (ending.value = v ?? '')
 )
 
 /** 名称去掉 .html 后缀显示 */
@@ -74,7 +69,6 @@ async function save() {
   const p = primary.value
   const ok = await store.saveNode(p.id, {
     name: name.value.trim() || p.name,
-    endingContent: ending.value,
     targetKind: kind.value,
     showOption: showOption.value
   })
@@ -162,15 +156,6 @@ async function del() {
           <input v-model="nextHash" placeholder="粘贴节点哈希" @keyup.enter="doRedirectNext" />
           <button class="btn" @click="doRedirectNext">修改</button>
         </div>
-      </div>
-
-      <div class="field">
-        <label>结局内容（末端口生效：无出边时播完黑屏居中显示；默认无）</label>
-        <textarea
-          v-model="ending"
-          rows="4"
-          placeholder="例如：故事到此结束，感谢观看……"
-        ></textarea>
       </div>
 
       <div class="row">

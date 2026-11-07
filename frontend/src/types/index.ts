@@ -54,7 +54,6 @@ export interface PortItem {
   name: string // 选项显示文案，对应数据库 option_content
   sceneId: number // 当前端点所在的节点 ID；出端口对应源节点，派生入端口对应目标节点
   targetKind: string // 目标内容类型：mp4 播放视频，html 打开 HTML 页面
-  endingContent: string // 目标节点的结局文案；当前保存在连入端口上
   entry: boolean // true 为前端派生入端口，false 为后端保存的出端口
   magic: boolean // 是否为魔法连接；不画线，不参与普通树层级和子树归属
 }
