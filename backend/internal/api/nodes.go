@@ -58,7 +58,7 @@ func (h *Handlers) breakConnection(c *gin.Context) {
 	ok(c, gin.H{})
 }
 
-// redirectNode 重定向端口一端到指定节点（按节点哈希）：side=prev 改上一节点 / next 改下一节点。
+// redirectNode 重定向魔法端口一端到指定节点（按节点哈希）：side=prev 改上一节点 / next 改下一节点。
 func (h *Handlers) redirectNode(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

@@ -88,18 +88,48 @@ func TestOrdinaryTreeAndRootProtection(t *testing.T) {
 		t.Fatal("detached ordinary subtree allowed")
 	}
 }
-func TestMoveSubtreeRecalculatesDepth(t *testing.T) {
+func TestOrdinaryPortCannotRedirect(t *testing.T) {
 	f := setup(t)
 	a, _ := f.child(t, f.root.ID)
 	b, p := f.child(t, f.root.ID)
-	c, _ := f.child(t, b.ID)
+	f.child(t, b.ID)
+	before := f.view(t)
+	for _, side := range []string{"prev", "next"} {
+		if err := f.nodes.RedirectNode(p.ID, a.Hash, side); err == nil || !strings.Contains(err.Error(), "普通端口不支持") {
+			t.Fatalf("ordinary redirect %s should be rejected: %v", side, err)
+		}
+		if f.view(t).Token != before.Token {
+			t.Fatal("rejected redirect changed connections or levels")
+		}
+	}
+}
+func TestMagicPortCanRedirect(t *testing.T) {
+	f := setup(t)
+	a, _ := f.child(t, f.root.ID)
+	b, _ := f.child(t, a.ID)
+	p, _, err := f.nodes.CreateMagicPort(f.root.ID, a.Hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.nodes.RedirectNode(p.ID, b.Hash, "next"); err != nil {
+		t.Fatal(err)
+	}
 	if err := f.nodes.RedirectNode(p.ID, a.Hash, "prev"); err != nil {
 		t.Fatal(err)
 	}
-	var restored models.Node
-	f.db.First(&restored, c.ID)
-	if restored.Level != 4 {
-		t.Fatalf("level=%d", restored.Level)
+	var got models.Port
+	if err := f.db.First(&got, p.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !got.Magic || got.NodeID != a.ID || got.ExportHash != b.Hash {
+		t.Fatalf("incorrect magic connection: %+v", got)
+	}
+	var child models.Node
+	if err := f.db.First(&child, b.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if child.Level != 3 {
+		t.Fatalf("magic redirect changed level: %d", child.Level)
 	}
 }
 func TestMagicDeletionAndUndo(t *testing.T) {

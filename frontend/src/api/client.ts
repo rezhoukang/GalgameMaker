@@ -106,7 +106,7 @@ export const api = {
   deleteNode: (id: number) => request<void>(`/api/nodes/${id}`, { method: 'DELETE' }),
   // 断开魔法连接；普通连接需移动或删除分支
   breakNode: (id: number) => request<void>(`/api/nodes/${id}/break`, { method: 'DELETE' }),
-  // 重定向端口一端到指定节点（按节点哈希）：side=prev 改上一节点 / next 改下一节点
+  // 重定向魔法端口一端到指定节点（按节点哈希）：side=prev 改上一节点 / next 改下一节点
   redirectNode: (id: number, hash: string, side: 'prev' | 'next') =>
     request<void>(`/api/nodes/${id}/redirect`, {
       method: 'PUT',

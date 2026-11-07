@@ -184,7 +184,7 @@ func (s *NodeService) BreakConnection(id uint) error {
 			return err
 		}
 		if !p.Magic {
-			return errors.New("普通分支不能悬空，请修改上一节点移动分支，或删除分支")
+			return errors.New("普通分支不能悬空，请删除分支")
 		}
 		var sc models.Node
 		if err := activeScenes(tx).First(&sc, p.NodeID).Error; err != nil {
@@ -202,6 +202,9 @@ func (s *NodeService) RedirectNode(id uint, hash, side string) error {
 		var from, to models.Node
 		if err := activePorts(tx).First(&p, id).Error; err != nil {
 			return err
+		}
+		if !p.Magic {
+			return errors.New("普通端口不支持修改连接节点")
 		}
 		if err := activeScenes(tx).First(&from, p.NodeID).Error; err != nil {
 			return err

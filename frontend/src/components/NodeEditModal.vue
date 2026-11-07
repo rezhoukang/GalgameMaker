@@ -39,21 +39,23 @@ function findPair() {
   emit('close')
 }
 
-// 连接关系（节点—端口—节点）：上一节点/下一节点，通过节点哈希修改
+// 仅魔法端口允许通过节点哈希修改连接两端
 // 输入框预填当前节点哈希，直接改完点「修改」即可
 const linkInfo = computed(() => store.linkInfo(props.node.id))
 const prevHash = ref(linkInfo.value?.prevScene?.hash ?? '')
 const nextHash = ref(linkInfo.value?.nextScene?.hash ?? '')
 
-/** 通过节点哈希修改上一节点（移动出端口） */
+/** 修改魔法端口所属节点 */
 async function doRedirectPrev() {
+  if (!primary.value.magic) return
   const h = prevHash.value.trim()
   if (!h) return
   if (await store.redirectNode(props.node.id, h, 'prev')) emit('close')
 }
 
-/** 通过节点哈希修改下一节点（移动入端口） */
+/** 修改魔法端口跳转目标 */
 async function doRedirectNext() {
+  if (!primary.value.magic) return
   const h = nextHash.value.trim()
   if (!h) return
   if (await store.redirectNode(props.node.id, h, 'next')) emit('close')
@@ -85,7 +87,7 @@ async function del() {
           <h3 id="port-dialog-title"><AppIcon name="file" :size="18" /> 端口设置</h3>
           <button class="close-btn" aria-label="关闭端口设置" @click="emit('close')"><AppIcon name="close" :size="16" /></button>
         </div>
-        <p class="hint-line">设置选项内容、播放方式和连接目标。</p>
+        <p class="hint-line">{{ primary.magic ? '设置选项内容、播放方式和魔法连接目标。' : '设置选项内容和播放方式。' }}</p>
       </header>
 
       <div class="dialog-body">
@@ -126,15 +128,15 @@ async function del() {
 
         <section class="connection-section">
           <h4>连接关系</h4>
-          <p class="hint-line">通过节点哈希修改连接的起点或终点。</p>
-          <div class="link-row">
+          <p v-if="primary.magic" class="hint-line">通过节点哈希修改魔法连接的起点或终点。</p>
+          <div v-if="primary.magic" class="link-row">
             <div class="link-heading"><span class="link-label">上一节点</span><span class="link-name" :title="linkInfo?.prevScene?.name">{{ stripExt(linkInfo?.prevScene?.name || '?') }}</span></div>
             <div class="link-controls">
               <input v-model="prevHash" aria-label="上一节点哈希" placeholder="粘贴节点哈希" @keyup.enter="doRedirectPrev" />
               <button class="btn" :disabled="store.busy" @click="doRedirectPrev">修改</button>
             </div>
           </div>
-          <div class="link-row">
+          <div v-if="primary.magic" class="link-row">
             <div class="link-heading"><span class="link-label">下一节点</span><span class="link-name" :title="linkInfo?.nextScene?.name">{{ stripExt(linkInfo?.nextScene?.name || '?') }}</span></div>
             <div class="link-controls">
               <input v-model="nextHash" aria-label="下一节点哈希" placeholder="粘贴节点哈希" @keyup.enter="doRedirectNext" />
