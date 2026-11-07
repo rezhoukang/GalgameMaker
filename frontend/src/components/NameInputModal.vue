@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vBackdropClose } from '@/backdropClose'
 import { ref, onMounted, nextTick } from 'vue'
 
 const props = defineProps<{
@@ -28,7 +29,7 @@ function confirm() {
 </script>
 
 <template>
-  <div class="modal-mask" @click.self="emit('cancel')">
+  <div class="modal-mask" v-backdrop-close="() => emit('cancel')">
     <div class="modal">
       <h3>{{ title }}</h3>
       <div class="field">

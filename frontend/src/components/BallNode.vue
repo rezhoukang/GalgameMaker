@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vBackdropClose } from '@/backdropClose'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
 import type { PortItem } from '@/types'
@@ -114,7 +115,7 @@ function onClick() {
     </div>
 
     <!-- 魔法端口弹窗：输入目标节点哈希 -->
-    <div v-if="magicOpen" class="modal-mask" @click.self="magicOpen = false">
+    <div v-if="magicOpen" class="modal-mask" v-backdrop-close="() => magicOpen = false">
       <div class="modal">
         <h3>新增魔法端口</h3>
         <div class="field">

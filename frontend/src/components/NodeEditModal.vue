@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vBackdropClose } from '@/backdropClose'
 import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
 import type { PortItem } from '@/types'
@@ -88,7 +89,7 @@ async function del() {
 </script>
 
 <template>
-  <div class="modal-mask" @click.self="emit('close')">
+  <div class="modal-mask" v-backdrop-close="() => emit('close')">
     <div class="modal node-edit" role="dialog" aria-modal="true" aria-labelledby="port-dialog-title">
       <header class="dialog-header">
         <div class="heading-row">

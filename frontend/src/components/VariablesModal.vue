@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vBackdropClose } from '@/backdropClose'
 import { ref } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
 import { useAppStore } from '@/store/app'
@@ -18,7 +19,7 @@ async function save() {
 }
 </script>
 <template>
-  <div class="modal-mask variables-mask" @click.self="emit('close')">
+  <div class="modal-mask variables-mask" v-backdrop-close="() => emit('close')">
     <section class="modal variables-modal" role="dialog" aria-modal="true" aria-labelledby="variables-title">
       <h3 id="variables-title">剧情变量</h3>
       <div class="variable-list">

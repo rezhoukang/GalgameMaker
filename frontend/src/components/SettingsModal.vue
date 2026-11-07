@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vBackdropClose } from '@/backdropClose'
 import { useAppStore } from '@/store/app'
 import AppIcon from './AppIcon.vue'
 
@@ -6,7 +7,7 @@ const app = useAppStore()
 </script>
 
 <template>
-  <div class="modal-mask" @click.self="app.closeSettings()">
+  <div class="modal-mask" v-backdrop-close="() => app.closeSettings()">
     <div class="modal">
       <h3><AppIcon name="gear" :size="18" /> 设置</h3>
 

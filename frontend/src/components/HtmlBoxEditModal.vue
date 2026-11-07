@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vBackdropClose } from '@/backdropClose'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
 import { useAppStore } from '@/store/app'
@@ -89,7 +90,7 @@ async function del() {
 </script>
 
 <template>
-  <div class="modal-mask" @click.self="emit('close')">
+  <div class="modal-mask" v-backdrop-close="() => emit('close')">
     <div class="modal html-edit" role="dialog" aria-modal="true" aria-labelledby="scene-dialog-title">
       <h3 id="scene-dialog-title"><AppIcon name="file" :size="17" /> 节点属性</h3>
       <div class="properties-columns">
