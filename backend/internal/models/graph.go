@@ -3,7 +3,7 @@ package models
 import "fmt"
 
 // ValidateGraph validates the ordinary tree; magic edges never affect depth or ownership.
-// It also derives levels and counts, so these values cannot drift from the connections.
+// Levels are derived from ordinary connections; incoming counts are validation-only.
 func ValidateGraph(scenes []Node, ports []Port) error {
 	byID, byHash := map[uint]*Node{}, map[string]*Node{}
 	var root *Node
@@ -13,7 +13,7 @@ func ValidateGraph(scenes []Node, ports []Port) error {
 			return fmt.Errorf("节点标识或名称无效")
 		}
 		byID[s.ID], byHash[s.Hash] = s, s
-		s.OutCount, s.InCount, s.Level, s.HasMagic = 0, 0, 0, false
+		s.Level = 0
 		if s.IsRoot {
 			if root != nil {
 				return fmt.Errorf("每个工程必须恰好有一个根节点")
@@ -25,6 +25,7 @@ func ValidateGraph(scenes []Node, ports []Port) error {
 		return fmt.Errorf("工程缺少根节点")
 	}
 	children := map[uint][]uint{}
+	incoming := map[uint]int{} // 普通入端口数量仅在校验期间统计，不写入节点记录。
 	ids, hashes := map[uint]bool{}, map[string]bool{}
 	for _, p := range ports {
 		from, to := byID[p.SceneID], byHash[p.ExportHash]
@@ -39,12 +40,10 @@ func ValidateGraph(scenes []Node, ports []Port) error {
 		}
 		ids[p.ID], hashes[p.Hash] = true, true
 		if p.Magic {
-			from.HasMagic, to.HasMagic = true, true
 			continue
 		}
-		from.OutCount++
-		to.InCount++
-		if to.IsRoot || to.InCount > 1 {
+		incoming[to.ID]++
+		if to.IsRoot || incoming[to.ID] > 1 {
 			return fmt.Errorf("根节点不能有普通入端口，其他节点至多一个普通入端口")
 		}
 		children[from.ID] = append(children[from.ID], to.ID)

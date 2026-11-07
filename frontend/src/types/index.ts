@@ -41,9 +41,6 @@ export interface Node {
   y: number // 节点纵坐标，前端自动布局重新计算
   video: string // 视频相对素材目录的路径；空串表示未指定视频文件
   first: boolean // 是否为所属工程的播放起点，不是全局唯一
-  outCount: number // 普通出端口数，不含魔法端口
-  inCount: number // 普通入端口数，不含魔法端口
-  hasMagic: boolean // 是否有魔法出端口或魔法入端口
 }
 
 // 端口视图：后端保存出端口，前端派生入端口。

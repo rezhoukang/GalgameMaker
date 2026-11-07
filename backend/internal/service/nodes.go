@@ -52,7 +52,7 @@ func normalize(tx *gorm.DB, canvasID uint) error {
 		return err
 	}
 	for _, sc := range ss {
-		if err := tx.Model(&models.Node{}).Where("id = ?", sc.ID).Updates(map[string]interface{}{"level": sc.Level, "out_count": sc.OutCount, "in_count": sc.InCount, "has_magic": sc.HasMagic}).Error; err != nil {
+		if err := tx.Model(&models.Node{}).Where("id = ?", sc.ID).Update("level", sc.Level).Error; err != nil {
 			return err
 		}
 	}

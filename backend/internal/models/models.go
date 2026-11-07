@@ -45,9 +45,6 @@ type Node struct {
 	Y         float64   `gorm:"comment:节点纵坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置" json:"y"`                                                        // 节点纵坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置
 	Video     string    `gorm:"not null;default:'';comment:视频相对 asset_dir 的路径，例如 .versions/xxx.mp4；空串表示未指定，检查时会扫描目录中的 mp4" json:"video"` // 视频相对 asset_dir 的路径，例如 .versions/xxx.mp4；空串表示未指定，检查时会扫描目录中的 mp4
 	IsFirst   bool      `gorm:"comment:是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同" json:"first"`                                                   // 是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同
-	OutCount  int       `gorm:"comment:普通出端口数量，不含魔法端口；根据连接关系统计并写回" json:"outCount"`                                                      // 普通出端口数量，不含魔法端口；根据连接关系统计并写回
-	InCount   int       `gorm:"comment:普通入端口数量，不含魔法端口；根节点为 0，其他正常节点为 1" json:"inCount"`                                                  // 普通入端口数量，不含魔法端口；根节点为 0，其他正常节点为 1
-	HasMagic  bool      `gorm:"comment:是否有魔法出端口或魔法入端口；根据连接关系统计并写回" json:"hasMagic"`                                                      // 是否有魔法出端口或魔法入端口；根据连接关系统计并写回
 	CreatedAt time.Time `gorm:"comment:节点创建时间，由 GORM 自动填写" json:"createdAt"`                                                             // 节点创建时间，由 GORM 自动填写
 	Level     int       `gorm:"not null;default:1;comment:普通连接树中的层级，根节点为 1；结构变化时重新计算" json:"level"`                                      // 普通连接树中的层级，根节点为 1；结构变化时重新计算
 	IsRoot    bool      `gorm:"not null;default:false;comment:是否为工程根节点；每个工程恰好一个，禁止单独删除" json:"isRoot"`                                   // 是否为工程根节点；每个工程恰好一个，禁止单独删除
