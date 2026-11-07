@@ -99,10 +99,6 @@ func TestVariableRulesUndoAndDeletion(t *testing.T) {
 	if len(current.Nodes) != 0 {
 		t.Fatal("deleted subtree still has ports and rules")
 	}
-	var orphanCount int64
-	if err = f.db.Model(&models.PortCondition{}).Count(&orphanCount).Error; err != nil || orphanCount != 0 {
-		t.Fatalf("orphan conditions after subtree deletion: %d %v", orphanCount, err)
-	}
 	restored, err := f.nodes.Restore(f.canvas.ID, current.Token, *before)
 	if err != nil {
 		t.Fatal(err)
@@ -126,9 +122,6 @@ func TestVariableRulesUndoAndDeletion(t *testing.T) {
 	if count != 0 {
 		t.Fatal("magic rules survived deletion")
 	}
-	if err = f.db.Model(&models.PortCondition{}).Where("port_id = ?", magic.ID).Count(&orphanCount).Error; err != nil || orphanCount != 0 {
-		t.Fatal("magic conditions survived deletion")
-	}
 	if err = f.db.Delete(f.canvas).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -140,30 +133,22 @@ func TestVariableRulesUndoAndDeletion(t *testing.T) {
 	}
 }
 
-func TestConditionsTableAndJSONEffects(t *testing.T) {
+func TestPortJSONConditionsAndEffects(t *testing.T) {
 	f := setup(t)
 	_, p := f.child(t, f.root.ID)
 	if f.db.Migrator().HasColumn(&models.Port{}, "reset_loop") || f.db.Migrator().HasColumn(&models.Variable{}, "reset_on_loop") {
 		t.Fatal("obsolete loop reset fields still exist")
 	}
-	if !f.db.Migrator().HasTable("port_conditions") || f.db.Migrator().HasTable("port_effects") || f.db.Migrator().HasColumn(&models.Port{}, "conditions") {
+	if f.db.Migrator().HasTable("port_conditions") || f.db.Migrator().HasTable("port_effects") || !f.db.Migrator().HasColumn(&models.Port{}, "conditions") || !f.db.Migrator().HasColumn(&models.Port{}, "effects") {
 		t.Fatal("incorrect condition/effect storage schema")
 	}
 	read := func() (string, string) {
 		t.Helper()
-		conditions := []models.PortCondition{}
-		if err := f.db.Where("port_id = ?", p.ID).Order("id").Find(&conditions).Error; err != nil {
+		var raw struct{ Conditions, Effects string }
+		if err := f.db.Table("ports").Select("conditions", "effects").Where("id = ?", p.ID).Scan(&raw).Error; err != nil {
 			t.Fatal(err)
 		}
-		data, err := json.Marshal(conditions)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var raw struct{ Effects string }
-		if err := f.db.Table("ports").Select("effects").Where("id = ?", p.ID).Scan(&raw).Error; err != nil {
-			t.Fatal(err)
-		}
-		return string(data), raw.Effects
+		return raw.Conditions, raw.Effects
 	}
 	if c, e := read(); c != "[]" || e != "[]" {
 		t.Fatalf("empty rules must be arrays: %q %q", c, e)
@@ -185,7 +170,7 @@ func TestConditionsTableAndJSONEffects(t *testing.T) {
 	if err := json.Unmarshal([]byte(e), &effects); err != nil {
 		t.Fatal(err)
 	}
-	if len(conditions) != 1 || conditions[0].PortID != p.ID || conditions[0].ID == 0 || conditions[0].VariableID != id || conditions[0].Operator != ">=" || conditions[0].Value != 0 || !reflect.DeepEqual(effects, rules.Effects) {
+	if !reflect.DeepEqual(conditions, rules.Conditions) || !reflect.DeepEqual(effects, rules.Effects) {
 		t.Fatal("stored conditions or effects differ from rules")
 	}
 	// 从数据库读取 JSON 规则后，完整导出仍携带同样的条件和效果。

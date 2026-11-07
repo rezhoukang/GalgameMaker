@@ -50,8 +50,8 @@ type Node struct {
 // Port 出端口，对应 ports 表；入端口仅由前端派生，不单独保存。
 type Port struct {
 	ConditionMode string          `gorm:"not null;default:all;comment:all 全部条件满足或 any 任一满足" json:"conditionMode"`                       // 条件组合方式
-	Conditions    []PortCondition `gorm:"-" json:"conditions"`                                                                          // 从 port_conditions 读取的出现条件
-	Effects       []PortEffect    `gorm:"serializer:json;type:json;not null;default:'[]';comment:变量增减或设值效果 JSON 数组" json:"effects"`     // 经过端口后的变量操作，空数组表示无变化
+	Conditions    []PortCondition `gorm:"serializer:json;type:json;not null;comment:端口出现条件 JSON 数组" json:"conditions"`                  // 出现条件，空数组表示无条件
+	Effects       []PortEffect    `gorm:"serializer:json;type:json;not null;comment:变量增减或设值效果 JSON 数组" json:"effects"`                  // 经过端口后的变量操作，空数组表示无变化
 	ID            uint            `gorm:"primaryKey;comment:出端口自增主键；前端派生的入端口使用对应负 ID" json:"id"`                                        // 出端口自增主键；前端派生的入端口使用对应负 ID
 	Hash          string          `gorm:"size:32;uniqueIndex;not null;comment:出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步" json:"hash"`             // 出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步
 	Name          string          `gorm:"column:option_content;not null;default:'选项';comment:选项显示文案，数据库列名为 option_content" json:"name"` // 选项显示文案，数据库列名为 option_content
