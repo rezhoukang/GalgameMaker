@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"galgame-maker/internal/service"
 	"io"
 	"net/http"
 	"strconv"
@@ -118,13 +119,14 @@ func (h *Handlers) updateScene(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Name string `json:"name"`
+		Name  string                   `json:"name"`
+		Ports []service.PortVisibility `json:"ports" binding:"dive"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		fail(c, http.StatusBadRequest, 400, "请求参数错误")
 		return
 	}
-	scene, err := h.nodes.UpdateScene(uint(id), req.Name)
+	scene, err := h.nodes.UpdateScene(uint(id), req.Name, req.Ports...)
 	if err != nil {
 		fail(c, http.StatusBadRequest, 400, err.Error())
 		return

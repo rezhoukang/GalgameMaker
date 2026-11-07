@@ -57,12 +57,34 @@ func normalize(tx *gorm.DB, canvasID uint) error {
 	}
 	return nil
 }
-func (s *NodeService) UpdateScene(id uint, name string) (*models.Node, error) {
+
+// PortVisibility 是节点属性中一并保存的出端口显示设置。
+type PortVisibility struct {
+	ID     uint  `json:"id" binding:"required"`
+	IsShow *bool `json:"isShow" binding:"required"`
+}
+
+func (s *NodeService) UpdateScene(id uint, name string, ports ...PortVisibility) (*models.Node, error) {
 	var scene *models.Node
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var err error
 		scene, err = NewNodeService(tx).updateScene(id, name)
-		return err
+		if err != nil {
+			return err
+		}
+		for _, change := range ports {
+			if change.ID == 0 || change.IsShow == nil {
+				return errors.New("端口显示设置不完整")
+			}
+			var port models.Port
+			if err := tx.Where("id = ? AND node_id = ?", change.ID, id).First(&port).Error; err != nil {
+				return errors.New("出端口不存在或不属于当前节点")
+			}
+			if err := tx.Model(&port).Update("is_show", *change.IsShow).Error; err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	return scene, err
 }
