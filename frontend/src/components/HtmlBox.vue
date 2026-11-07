@@ -31,6 +31,8 @@ const isFolded = computed(() => store.isCollapsed(props.scene.id))
 const outCol = computed(() =>
   store.nodes.filter((n) => n.nodeId === props.scene.id && !store.nodeIsEntry(n.id))
 )
+// 魔法连接不构成子树；只有存在普通子节点时才显示折叠按钮。
+const hasChildren = computed(() => outCol.value.some(p => !p.magic && store.sceneByHash(p.exportHash)))
 const addBtnTop = computed(() => {
   const n = outCol.value.length
   if (n === 0) return NODE_H / 2 // 无出端口：高度居中
@@ -143,8 +145,9 @@ async function commitName() {
       </button>
     </div>
 
-    <!-- 折叠/展开子树：骑在节点顶框上（一半在框内一半在框外），每个节点都有 -->
+    <!-- 仅有普通子节点时显示折叠/展开按钮 -->
     <button
+      v-if="hasChildren"
       class="fold-btn"
       :class="{ folded: isFolded }"
       :title="isFolded ? '展开子树' : '收起子树'"
