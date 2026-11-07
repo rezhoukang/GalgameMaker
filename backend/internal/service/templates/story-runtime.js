@@ -35,13 +35,15 @@ function createStoryRuntime(nodes, variables, first) {
     var port = nodes[String(state.currentNode)].options.find(function(p) { return p.id === portId; });
     if (!port || !nodes[String(port.target)] || !eligible(port,state.values)) throw new Error('当前选项条件不满足');
     var values = Object.assign({}, state.values);
-    if (port.resetLoop) variables.forEach(function(v) { if (v.resetOnLoop) values[String(v.id)] = v.initialValue; });
     var seen = Object.create(null);
     port.effects.forEach(function(e) {
       var key = String(e.variableId);
       if (!definitions[key] || seen[key] || !Number.isSafeInteger(e.delta)) throw new Error('变量效果无效');
       seen[key] = true;
-      var next = values[key] + e.delta;
+      if (e.operation !== 'add' && e.operation !== 'clear') throw new Error('变量操作无效');
+      if (e.operation === 'clear' && e.delta !== 0) throw new Error('清空操作的变化量必须为 0');
+      // 清空由播放器在经过端口时执行，等价于 delta = -当前值。
+      var next = e.operation === 'clear' ? 0 : values[key] + e.delta;
       if (!Number.isSafeInteger(next)) throw new Error('变量数值超出安全整数范围');
       values[key] = next;
     });

@@ -26,7 +26,7 @@ const targetScene = computed(() => store.scenes.find(sc => sc.hash === primary.v
 
 const name = ref(primary.value.name)
 const isShow = ref(primary.value.isShow)
-const rules = ref<PortRules>({conditionMode: primary.value.conditionMode, resetLoop: primary.value.resetLoop,
+const rules = ref<PortRules>({conditionMode: primary.value.conditionMode,
   conditions: primary.value.conditions.map(c => ({...c})), effects: primary.value.effects.map(e => ({...e}))})
 
 watch(
@@ -70,7 +70,7 @@ onMounted(() => {
 
 async function save() {
   const ids = new Set(store.variables.map(v => v.id))
-  if (rules.value.conditions.some(c => !ids.has(c.variableId) || !Number.isSafeInteger(c.value)) || rules.value.effects.some(e => !ids.has(e.variableId) || !Number.isSafeInteger(e.delta))) {
+  if (rules.value.conditions.some(c => !ids.has(c.variableId) || !Number.isSafeInteger(c.value)) || rules.value.effects.some(e => !ids.has(e.variableId) || !['add','clear'].includes(e.operation) || !Number.isSafeInteger(e.delta) || (e.operation === 'clear' && e.delta !== 0))) {
     useAppStore().notify('请选择有效变量，并填写整数数值', 'error'); return
   }
   const p = primary.value

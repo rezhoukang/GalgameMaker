@@ -20,7 +20,6 @@ func projectVariables(db *gorm.DB, projectID uint) ([]models.Variable, error) {
 // PortRules 作为一个整体保存，避免只保存了部分条件或效果。
 type PortRules struct {
 	ConditionMode string                 `json:"conditionMode"` // all / any
-	ResetLoop     bool                   `json:"resetLoop"`     // 先重置本轮变量
 	Conditions    []models.PortCondition `json:"conditions"`    // 条件列表
 	Effects       []models.PortEffect    `json:"effects"`       // 变量变化列表
 }
@@ -57,6 +56,15 @@ func validateRules(vars []models.Variable, mode string, conditions []models.Port
 		if !validStoryValue(e.Delta) {
 			return errors.New("变化量必须为安全整数")
 		}
+		switch e.Operation {
+		case "add":
+		case "clear":
+			if e.Delta != 0 {
+				return errors.New("清空操作的变化量必须为 0")
+			}
+		default:
+			return errors.New("变量操作必须为 add 或 clear")
+		}
 		seen[e.VariableID] = true
 	}
 	return nil
@@ -75,7 +83,6 @@ func savePortRules(tx *gorm.DB, p *models.Port, rules PortRules) error {
 		return err
 	}
 	p.ConditionMode = rules.ConditionMode
-	p.ResetLoop = rules.ResetLoop
 	p.Conditions = append([]models.PortCondition{}, rules.Conditions...)
 	p.Effects = append([]models.PortEffect{}, rules.Effects...)
 	return nil

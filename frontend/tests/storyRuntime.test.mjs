@@ -6,8 +6,8 @@ import test from 'node:test'
 const source = readFileSync(new URL('../../backend/internal/service/templates/story-runtime.js', import.meta.url), 'utf8')
 const template = readFileSync(new URL('../../backend/internal/service/templates/player.html', import.meta.url), 'utf8')
 const createRuntime = runInNewContext(source + '\ncreateStoryRuntime')
-const vars = [{id:1,initialValue:3,resetOnLoop:true}, {id:2,initialValue:0,resetOnLoop:false}]
-const port = (extra = {}) => ({id:10,target:1,isShow:true,label:'再来一轮',conditionMode:'all',conditions:[],effects:[],resetLoop:false,...extra})
+const vars = [{id:1,initialValue:3}, {id:2,initialValue:0}]
+const port = (extra = {}) => ({id:10,target:1,isShow:true,label:'再来一轮',conditionMode:'all',conditions:[],effects:[],...extra})
 const graph = p => ({1:{hash:'root',name:'开场',html:'a.html',options:[p]}})
 const copy = value => JSON.parse(JSON.stringify(value))
 
@@ -22,12 +22,12 @@ test('all/any comparisons and unconditional ports', () => {
   assert.equal(r.eligible(port({conditionMode:'any'}), r.initial().values), true)
 })
 
-test('conditions precede selective loop reset, then multiple effects apply once', () => {
-  const p = port({resetLoop:true,conditions:[{variableId:1,operator:'>=',value:3}],effects:[{variableId:1,delta:-2},{variableId:2,delta:1}]})
+test('conditions precede clear and add effects, and unconfigured variables are retained', () => {
+  const p = port({conditions:[{variableId:1,operator:'>=',value:3}],effects:[{variableId:1,operation:'clear',delta:0},{variableId:2,operation:'add',delta:1}]})
   const r = createRuntime(graph(p), vars, 1)
   const original = r.initial()
   const next = r.transition(original,10)
-  assert.deepEqual(copy(next.values), {'1':1,'2':1})
+  assert.deepEqual(copy(next.values), {'1':0,'2':1})
   assert.deepEqual(copy(original.values), {'1':3,'2':0})
   assert.equal(r.validState(next),true)
   assert.throws(() => r.transition(next,10), /条件/)
@@ -36,21 +36,36 @@ test('conditions precede selective loop reset, then multiple effects apply once'
   corrupt.values['2'] = 1; corrupt.history[0].target = 'missing'
   assert.equal(r.validState(corrupt),false)
   p.conditions = []
-  assert.deepEqual(copy(r.transition(next,10).values),{'1':1,'2':2})
+  assert.deepEqual(copy(r.transition(next,10).values),{'1':0,'2':2})
 })
 
 test('overflow fails atomically and long looping history validates', () => {
-  const p = port({effects:[{variableId:1,delta:1},{variableId:2,delta:Number.MAX_SAFE_INTEGER}]})
+  const p = port({effects:[{variableId:1,operation:'add',delta:1},{variableId:2,operation:'add',delta:Number.MAX_SAFE_INTEGER}]})
   const r = createRuntime(graph(p),vars,1)
   const state = r.transition(r.initial(),10)
   const before = copy(state)
   assert.throws(() => r.transition(state,10),/安全整数/)
   assert.deepEqual(copy(state),before)
-  p.effects = [{variableId:2,delta:1}]
+  p.effects = [{variableId:2,operation:'add',delta:1}]
   let loop = r.initial()
   for(let i=0;i<1000;i++) loop = r.transition(loop,10)
   assert.equal(r.validState(loop),true)
   assert.equal(loop.values[2],1000)
+})
+
+test('clear uses the value at runtime, retains unrelated variables and rejects invalid effects atomically', () => {
+  const p = port({effects:[{variableId:1,operation:'clear',delta:0}]})
+  for (const n of [0,3,8,-5,Number.MAX_SAFE_INTEGER,-Number.MAX_SAFE_INTEGER]) {
+    const r = createRuntime(graph(p),[{id:1,initialValue:n},{id:2,initialValue:9}],1)
+    assert.deepEqual(copy(r.transition(r.initial(),10).values),{'1':0,'2':9})
+  }
+  const r = createRuntime(graph(p),vars,1)
+  const state = r.initial()
+  p.effects.push({variableId:2,operation:'unknown',delta:0})
+  assert.throws(() => r.transition(state,10),/操作/)
+  assert.deepEqual(copy(state.values),{'1':3,'2':0})
+  p.effects = [{variableId:1,operation:'clear',delta:1}]
+  assert.throws(() => r.transition(state,10),/清空/)
 })
 
 function player(p, storage = new Map(), revision = 'v1') {
@@ -73,7 +88,7 @@ function player(p, storage = new Map(), revision = 'v1') {
 }
 
 test('player guards duplicate/stale clicks and resumes without replaying effects', () => {
-  const p = port({effects:[{variableId:2,delta:1}]})
+  const p = port({effects:[{variableId:1,operation:'clear',delta:0},{variableId:2,operation:'add',delta:1}]})
   const game=player(p)
   game.click('start')
   game.ctx.afterContent()
@@ -85,6 +100,7 @@ test('player guards duplicate/stale clicks and resumes without replaying effects
   const resumed=player(p,game.storage)
   assert.ok(resumed.ctx.saved)
   resumed.click('continue')
+  assert.equal(resumed.ctx.state.values[1],0)
   assert.equal(resumed.ctx.state.values[2],1)
   assert.equal(resumed.ctx.state.history.length,1)
   resumed.windowEvents.popstate();resumed.windowEvents.hashchange()

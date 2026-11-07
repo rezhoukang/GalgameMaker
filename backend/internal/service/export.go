@@ -38,7 +38,6 @@ type ExportResult struct {
 type LinkInfo struct {
 	ID            uint                   `json:"id"`            // 原出端口 ID，用于路径历史
 	ConditionMode string                 `json:"conditionMode"` // 条件组合方式
-	ResetLoop     bool                   `json:"resetLoop"`     // 开始新一轮
 	Conditions    []models.PortCondition `json:"conditions"`    // 出现条件
 	Effects       []models.PortEffect    `json:"effects"`       // 变量增减
 	Label         string                 `json:"label"`
@@ -131,7 +130,7 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 		}
 		for _, p := range ports {
 			if p.NodeID == sc.ID {
-				r.Options = append(r.Options, LinkInfo{ID: p.ID, Label: p.Name, TargetID: byHash[p.ExportHash], IsShow: p.IsShow, ConditionMode: p.ConditionMode, ResetLoop: p.ResetLoop, Conditions: p.Conditions, Effects: p.Effects})
+				r.Options = append(r.Options, LinkInfo{ID: p.ID, Label: p.Name, TargetID: byHash[p.ExportHash], IsShow: p.IsShow, ConditionMode: p.ConditionMode, Conditions: p.Conditions, Effects: p.Effects})
 			}
 		}
 		res[sc.ID] = r

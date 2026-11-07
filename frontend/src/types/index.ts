@@ -48,7 +48,6 @@ export interface Node extends NodeData {
 // 后端仅返回出端口；前端按 exportHash 生成负 ID 的入端口。
 export interface PortItem {
   conditionMode: 'all' | 'any' // 条件组合方式
-  resetLoop: boolean // 经过时先重置本轮变量，再执行增减
   conditions: PortCondition[] // 端口出现条件
   effects: PortEffect[] // 经过端口的变量变化
   exportHash: string // 目标剧情节点 hash，对应 nodes.hash
@@ -85,7 +84,6 @@ export interface StoryVariable {
   projectId: number // 所属工程
   name: string // 工程内唯一名称
   initialValue: number // 新游戏初始整数值
-  resetOnLoop: boolean // 开始新一轮是否恢复初始值
 }
 export interface PortCondition {
   variableId: number // 检查的变量
@@ -94,11 +92,11 @@ export interface PortCondition {
 }
 export interface PortEffect {
   variableId: number // 修改的变量
-  delta: number // 正数增加，负数减少
+  operation: 'add' | 'clear' // 增减或清空为 0
+  delta: number // add 时正数增加、负数减少；clear 时固定为 0
 }
 export interface PortRules {
   conditionMode: 'all' | 'any' // 多条条件的组合方式
-  resetLoop: boolean // 开始新一轮
   conditions: PortCondition[] // 无条件表示默认允许
   effects: PortEffect[] // 同一变量最多一条变化
 }

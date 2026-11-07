@@ -13,11 +13,11 @@ import (
 func TestVariableRulesOwnershipAndAtomicSave(t *testing.T) {
 	f := setup(t)
 	_, p := f.child(t, f.root.ID)
-	if err := f.nodes.SaveVariables(f.canvas.ID, []models.Variable{{Name: "勇气", InitialValue: 2}, {Name: "记忆", ResetOnLoop: true}}); err != nil {
+	if err := f.nodes.SaveVariables(f.canvas.ID, []models.Variable{{Name: "勇气", InitialValue: 2}, {Name: "记忆"}}); err != nil {
 		t.Fatal(err)
 	}
 	vars := f.view(t).Variables
-	rules := PortRules{ConditionMode: "all", Conditions: []models.PortCondition{{VariableID: vars[0].ID, Operator: ">=", Value: 2}}, Effects: []models.PortEffect{{VariableID: vars[0].ID, Delta: -1}, {VariableID: vars[1].ID, Delta: 3}}}
+	rules := PortRules{ConditionMode: "all", Conditions: []models.PortCondition{{VariableID: vars[0].ID, Operator: ">=", Value: 2}}, Effects: []models.PortEffect{{VariableID: vars[0].ID, Operation: "add", Delta: -1}, {VariableID: vars[1].ID, Operation: "add", Delta: 3}}}
 	hidden := false
 	if _, err := f.nodes.UpdateNode(p.ID, "前进", &hidden, rules); err != nil {
 		t.Fatal(err)
@@ -25,9 +25,11 @@ func TestVariableRulesOwnershipAndAtomicSave(t *testing.T) {
 	before := f.view(t)
 	invalid := []PortRules{
 		{ConditionMode: "invalid"},
+		{ConditionMode: "all", Effects: []models.PortEffect{{VariableID: vars[0].ID, Operation: "unknown", Delta: 0}}},
+		{ConditionMode: "all", Effects: []models.PortEffect{{VariableID: vars[0].ID, Operation: "clear", Delta: 1}}},
 		{ConditionMode: "all", Conditions: []models.PortCondition{{VariableID: vars[0].ID, Operator: "=", Value: 1}}},
-		{ConditionMode: "all", Effects: []models.PortEffect{{VariableID: vars[0].ID, Delta: 1}, {VariableID: vars[0].ID, Delta: 2}}},
-		{ConditionMode: "all", Effects: []models.PortEffect{{VariableID: vars[0].ID, Delta: maxStoryValue + 1}}},
+		{ConditionMode: "all", Effects: []models.PortEffect{{VariableID: vars[0].ID, Operation: "add", Delta: 1}, {VariableID: vars[0].ID, Operation: "add", Delta: 2}}},
+		{ConditionMode: "all", Effects: []models.PortEffect{{VariableID: vars[0].ID, Operation: "add", Delta: maxStoryValue + 1}}},
 	}
 	other, err := f.tree.CreateCanvas(f.canvas.FolderID, "other")
 	if err != nil {
@@ -40,7 +42,7 @@ func TestVariableRulesOwnershipAndAtomicSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	invalid = append(invalid, PortRules{ConditionMode: "all", Effects: []models.PortEffect{{VariableID: foreign[0].ID, Delta: 1}}})
+	invalid = append(invalid, PortRules{ConditionMode: "all", Effects: []models.PortEffect{{VariableID: foreign[0].ID, Operation: "add", Delta: 1}}})
 	for _, r := range invalid {
 		if _, err := f.nodes.UpdateNode(p.ID, "不应保存", nil, r); err == nil {
 			t.Fatal("accepted invalid rules")
@@ -78,11 +80,11 @@ func TestVariableRulesUndoAndDeletion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = f.nodes.SaveVariables(f.canvas.ID, []models.Variable{{Name: "轮次", ResetOnLoop: false}}); err != nil {
+	if err = f.nodes.SaveVariables(f.canvas.ID, []models.Variable{{Name: "轮次"}}); err != nil {
 		t.Fatal(err)
 	}
 	variable := f.view(t).Variables[0]
-	rules := PortRules{ConditionMode: "any", ResetLoop: true, Conditions: []models.PortCondition{{VariableID: variable.ID, Operator: "==", Value: 0}}, Effects: []models.PortEffect{{VariableID: variable.ID, Delta: 1}}}
+	rules := PortRules{ConditionMode: "any", Conditions: []models.PortCondition{{VariableID: variable.ID, Operator: "==", Value: 0}}, Effects: []models.PortEffect{{VariableID: variable.ID, Operation: "clear", Delta: 0}}}
 	hidden := false
 	for _, id := range []uint{p.ID, magic.ID} {
 		if _, err = f.nodes.UpdateNode(id, "loop", &hidden, rules); err != nil {
@@ -106,7 +108,7 @@ func TestVariableRulesUndoAndDeletion(t *testing.T) {
 	}
 	for i, p := range restored.Nodes {
 		old := before.Nodes[i]
-		if p.IsShow || p.ConditionMode != old.ConditionMode || p.ResetLoop != old.ResetLoop || !reflect.DeepEqual(p.Conditions, old.Conditions) || !reflect.DeepEqual(p.Effects, old.Effects) {
+		if p.IsShow || p.ConditionMode != old.ConditionMode || !reflect.DeepEqual(p.Conditions, old.Conditions) || !reflect.DeepEqual(p.Effects, old.Effects) {
 			t.Fatal("undo changed rules")
 		}
 	}
@@ -134,6 +136,9 @@ func TestVariableRulesUndoAndDeletion(t *testing.T) {
 func TestPortRulesStoredAsJSON(t *testing.T) {
 	f := setup(t)
 	_, p := f.child(t, f.root.ID)
+	if f.db.Migrator().HasColumn(&models.Port{}, "reset_loop") || f.db.Migrator().HasColumn(&models.Variable{}, "reset_on_loop") {
+		t.Fatal("obsolete loop reset fields still exist")
+	}
 	for _, table := range []string{"port_conditions", "port_effects"} {
 		if f.db.Migrator().HasTable(table) {
 			t.Fatal("unexpected separate rules table", table)
@@ -157,7 +162,7 @@ func TestPortRulesStoredAsJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := f.view(t).Variables[0].ID
-	rules := PortRules{ConditionMode: "all", Conditions: []models.PortCondition{{VariableID: id, Operator: ">=", Value: 0}}, Effects: []models.PortEffect{{VariableID: id, Delta: 2}}}
+	rules := PortRules{ConditionMode: "all", Conditions: []models.PortCondition{{VariableID: id, Operator: ">=", Value: 0}}, Effects: []models.PortEffect{{VariableID: id, Operation: "clear", Delta: 0}}}
 	if _, err := f.nodes.UpdateNode(p.ID, "选项", nil, rules); err != nil {
 		t.Fatal(err)
 	}
@@ -208,8 +213,8 @@ func TestPortRulesStoredAsJSON(t *testing.T) {
 
 func TestPlayerExportIncludesVariableRules(t *testing.T) {
 	f := setup(t)
-	vars := []models.Variable{{ID: 1, ProjectID: f.canvas.ID, Name: "勇气</script>", InitialValue: 2, ResetOnLoop: true}}
-	scenes := map[uint]*SceneRes{1: {Hash: "root", HTML: "a.html", Options: []LinkInfo{{ID: 9, TargetID: 1, ConditionMode: "any", ResetLoop: true, Conditions: []models.PortCondition{{VariableID: 1, Operator: ">=", Value: 2}}, Effects: []models.PortEffect{{VariableID: 1, Delta: -1}}}}}}
+	vars := []models.Variable{{ID: 1, ProjectID: f.canvas.ID, Name: "勇气</script>", InitialValue: 2}}
+	scenes := map[uint]*SceneRes{1: {Hash: "root", HTML: "a.html", Options: []LinkInfo{{ID: 9, TargetID: 1, ConditionMode: "any", Conditions: []models.PortCondition{{VariableID: 1, Operator: ">=", Value: 2}}, Effects: []models.PortEffect{{VariableID: 1, Operation: "add", Delta: -1}}}}}}
 	dir := t.TempDir()
 	exporter := NewExportService(f.db, NewSettingsService(f.db, f.cfg))
 	if err := exporter.writePlayerIndex(dir, 1, scenes, vars, "project"); err != nil {
@@ -237,7 +242,7 @@ func TestPlayerExportIncludesVariableRules(t *testing.T) {
 	if len(meta.Variables) != 1 || meta.Variables[0].Name != vars[0].Name || meta.ProjectKey != "project" || meta.Revision == "" {
 		t.Fatal("invalid metadata")
 	}
-	if !strings.Contains(page, `"delta":-1`) || !strings.Contains(page, `"resetLoop":true`) {
+	if !strings.Contains(page, `"delta":-1`) || !strings.Contains(page, `"operation":"add"`) {
 		t.Fatal("missing rules")
 	}
 }
