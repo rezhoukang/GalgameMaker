@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
 import { useAppStore } from '@/store/app'
 import BallNode from './BallNode.vue'
@@ -62,11 +62,18 @@ function nodePos(node: PortItem) {
   }
 }
 
+const copiedHash = ref<string | null>(null)
+const copyConfirmRef = ref<HTMLButtonElement | null>(null)
+
 /** 复制节点哈希 */
 async function copyHash() {
   try {
-    await navigator.clipboard.writeText(props.scene.hash || '')
-    app.notify('复制哈希成功', 'success')
+    const hash = props.scene.hash
+    if (!hash) throw new Error('节点哈希为空')
+    await navigator.clipboard.writeText(hash)
+    copiedHash.value = hash
+    await nextTick()
+    copyConfirmRef.value?.focus()
   } catch {
     app.notify('复制失败', 'error')
   }
@@ -167,9 +174,29 @@ async function commitName() {
     <!-- 入/出端口球：节点直接子级，绝对定位基准与连线锚点（ballWorld）一致 -->
     <BallNode v-for="ball in store.nodes.filter((n) => n.nodeId === scene.id)" :key="ball.id" :node="ball" :pos="nodePos(ball)" />
   </div>
+  <Teleport to="body">
+    <div v-if="copiedHash !== null" class="modal-mask" @click.self="copiedHash = null" @keydown.esc.stop.prevent="copiedHash = null">
+      <div class="modal copy-success" role="alertdialog" aria-modal="true" :aria-labelledby="`copy-success-${scene.id}`">
+        <svg class="copy-success-icon" viewBox="0 0 24 24" width="36" height="36" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8" />
+          <path d="m7 12 3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <h3 :id="`copy-success-${scene.id}`">复制哈希成功</h3>
+        <code class="copied-hash">{{ copiedHash }}</code>
+        <button ref="copyConfirmRef" type="button" class="btn primary" @click="copiedHash = null">知道了</button>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
+.copy-success { width: min(360px, calc(100vw - 32px)); text-align: center; }
+.copy-success-icon { color: var(--success); margin-bottom: 12px; }
+.copy-success h3 { justify-content: center; margin-bottom: 12px; }
+.copied-hash { display: block; padding: 10px 12px; margin-bottom: 20px; border-radius: 8px; background: var(--bg-soft); color: var(--text-dim); overflow-wrap: anywhere; user-select: text; }
+.copy-success .btn { min-width: 100px; justify-content: center; }
+.copy-success .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
 .root-label { font-size: 10px; color: var(--accent); flex: none; }
 /* 思维导图节点：圆角卡片，无左右端口列区域、无方框化装饰 */
 .mm-node {
