@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
 import { useAppStore } from '@/store/app'
 import BallNode from './BallNode.vue'
@@ -12,16 +12,7 @@ const props = defineProps<{ scene: Node }>()
 const store = useCanvasStore()
 const app = useAppStore()
 
-const name = ref(stripExt(props.scene.name))
-watch(
-  () => props.scene.name,
-  (v) => (name.value = stripExt(v))
-)
-
-/** 名称去掉 .html 后缀显示（节点名即文件夹名） */
-function stripExt(n: string): string {
-  return n.replace(/\.html?$/i, '')
-}
+const name = computed(() => props.scene.name.replace(/\.html?$/i, ''))
 
 const height = computed(() => store.sceneHeight(props.scene.id))
 const selected = computed(() => store.selectedSceneIds.includes(props.scene.id))
@@ -96,23 +87,6 @@ function onEdit() {
   store.editingScene = props.scene.id
 }
 
-async function commitName() {
-  let v = name.value.trim()
-  if (!v) {
-    name.value = stripExt(props.scene.name)
-    return
-  }
-  if (v === stripExt(props.scene.name)) {
-    name.value = v
-    return
-  }
-  try {
-    await store.renameScene(props.scene.id, v)
-  } catch (e: any) {
-    app.handleApiError(e)
-    name.value = stripExt(props.scene.name)
-  }
-}
 </script>
 
 <template>
@@ -140,15 +114,7 @@ async function commitName() {
       <span v-if="scene.first" class="first-badge" title="开始节点：导出后从它开始播放">
         <svg viewBox="0 0 16 16" width="10" height="10" fill="currentColor"><path d="M4 2 L14 8 L4 14 Z" /></svg>
       </span>
-      <input
-        v-model="name"
-        spellcheck="false"
-        title="节点名称（可编辑）"
-        @mousedown.stop
-        @blur="commitName"
-        @keyup.enter="commitName"
-        @keyup.esc="name = scene.name; ($event.target as HTMLInputElement).blur()"
-      />
+      <span class="node-name" :title="name">{{ name }}</span>
       <button class="mini hash-copy" title="复制节点哈希" @mousedown.stop @click.stop="copyHash">#</button>
       <button class="mini edit" title="编辑节点（导入 HTML / 视频 / 第一个播放）" @mousedown.stop @click.stop="onEdit">
         <AppIcon name="pen" :size="13" />
@@ -271,24 +237,17 @@ async function commitName() {
   flex: none;
   box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
 }
-.mm-title input {
+.node-name {
   flex: 1;
   min-width: 0;
-  background: transparent;
-  border: 1px solid transparent;
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
   padding: 3px 6px;
-  border-radius: 6px;
-  outline: none;
-}
-.mm-title input:hover {
-  border-color: var(--border-light);
-}
-.mm-title input:focus {
-  border-color: var(--accent);
-  background: var(--bg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
 }
 .mini {
   width: 24px;
