@@ -9,8 +9,6 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
 const store = useCanvasStore()
 const nameRef = ref<HTMLInputElement | null>(null)
-const scene = computed(() => store.sceneById(props.node.nodeId))
-const sceneName = computed(() => stripExt(store.sceneById(props.node.nodeId)?.name || '（未知）'))
 // 配对端口（同一哈希的另一端），出/入通用——配对即相连，方向无所谓
 const pairInfo = computed(() => store.pairInfo(props.node.id))
 // 一对端口配置共同，以出端口（entry=false）为准
@@ -18,6 +16,10 @@ const primary = computed(() => {
   if (!props.node.entry) return props.node
   return pairInfo.value?.peer ?? props.node
 })
+
+// 从出端口方向展示所属节点和下一端点，点击入端口时也保持一致。
+const sourceScene = computed(() => store.sceneById(primary.value.nodeId))
+const targetScene = computed(() => store.scenes.find(sc => sc.hash === primary.value.exportHash))
 
 const name = ref(primary.value.name)
 const isShow = ref(primary.value.isShow)
@@ -32,18 +34,14 @@ function stripExt(n: string): string {
   return n.replace(/\.html?$/i, '')
 }
 
-/** 跳到配对端口所在节点并高亮 */
-function findPair() {
-  const sc = pairInfo.value?.peerScene
-  if (sc?.hash) store.highlightSceneByHash(sc.hash)
-  emit('close')
+/** 定位连接两端的节点，并关闭设置弹窗。 */
+function locateNode(hash?: string) {
+  if (hash && store.highlightSceneByHash(hash)) emit('close')
 }
 
-// 仅魔法端口允许通过节点哈希修改连接两端
-// 输入框预填当前节点哈希，直接改完点「修改」即可
-const linkInfo = computed(() => store.linkInfo(props.node.id))
-const prevHash = ref(linkInfo.value?.prevScene?.hash ?? '')
-const nextHash = ref(linkInfo.value?.nextScene?.hash ?? '')
+// 魔法端口保留连接修改能力，普通端口只展示节点信息。
+const prevHash = ref(sourceScene.value?.hash ?? '')
+const nextHash = ref(primary.value.exportHash ?? '')
 
 /** 修改魔法端口所属节点 */
 async function doRedirectPrev() {
@@ -117,39 +115,37 @@ async function del() {
           </div>
         </div>
 
-        <div class="node-info">
-          <div class="owner-row">
-            <span class="info-label">所属节点</span>
-            <span class="owner-name" :title="sceneName"><AppIcon name="file" :size="14" /> {{ sceneName }}</span>
-          </div>
-          <div class="meta-row"><span class="info-label">节点哈希</span><code>{{ scene?.hash || '—' }}</code></div>
-          <div class="meta-row"><span class="info-label">端口哈希</span><code>{{ node.hash }}</code></div>
-        </div>
-
-        <section class="connection-section">
-          <h4>连接关系</h4>
-          <p v-if="primary.magic" class="hint-line">通过节点哈希修改魔法连接的起点或终点。</p>
-          <div v-if="primary.magic" class="link-row">
-            <div class="link-heading"><span class="link-label">上一节点</span><span class="link-name" :title="linkInfo?.prevScene?.name">{{ stripExt(linkInfo?.prevScene?.name || '?') }}</span></div>
-            <div class="link-controls">
-              <input v-model="prevHash" aria-label="上一节点哈希" placeholder="粘贴节点哈希" @keyup.enter="doRedirectPrev" />
-              <button class="btn" :disabled="store.busy" @click="doRedirectPrev">修改</button>
+        <section class="endpoint-card" aria-labelledby="source-node-title">
+          <div class="endpoint-heading">
+            <div class="endpoint-details">
+              <h4 id="source-node-title">所属节点</h4>
+              <div class="endpoint-name" :title="sourceScene?.name"><AppIcon name="file" :size="14" /><span>{{ stripExt(sourceScene?.name || '节点不存在') }}</span></div>
             </div>
+            <button class="btn" aria-label="定位所属节点" :disabled="!sourceScene" @click="locateNode(sourceScene?.hash)">定位</button>
           </div>
-          <div v-if="primary.magic" class="link-row">
-            <div class="link-heading"><span class="link-label">下一节点</span><span class="link-name" :title="linkInfo?.nextScene?.name">{{ stripExt(linkInfo?.nextScene?.name || '?') }}</span></div>
-            <div class="link-controls">
-              <input v-model="nextHash" aria-label="下一节点哈希" placeholder="粘贴节点哈希" @keyup.enter="doRedirectNext" />
-              <button class="btn" :disabled="store.busy" @click="doRedirectNext">修改</button>
-            </div>
+          <div class="meta-row"><span class="info-label">节点哈希</span><code>{{ sourceScene?.hash || '—' }}</code></div>
+          <div v-if="primary.magic" class="link-controls">
+            <input v-model="prevHash" aria-label="所属节点哈希" placeholder="粘贴节点哈希" @keyup.enter="doRedirectPrev" />
+            <button class="btn" :disabled="store.busy" @click="doRedirectPrev">修改</button>
           </div>
-          <div v-if="pairInfo" class="peer-row">
-            <span class="peer-name" :title="pairInfo.peerScene?.name">另一端：{{ stripExt(pairInfo.peerScene?.name || '?') }}</span>
-            <span v-if="pairInfo.peer?.magic" class="magic-badge">魔法端口</span>
-            <button class="btn" title="跳到配对端口所在节点并高亮" @click="findPair">定位节点</button>
-          </div>
-          <p v-else class="hint-line missing-target">目标节点不存在</p>
         </section>
+
+        <section class="endpoint-card" aria-labelledby="target-node-title">
+          <div class="endpoint-heading">
+            <div class="endpoint-details">
+              <h4 id="target-node-title">下一端点 <span v-if="primary.magic" class="magic-badge">魔法连接</span></h4>
+              <div class="endpoint-name" :title="targetScene?.name"><AppIcon name="file" :size="14" /><span>{{ stripExt(targetScene?.name || '节点不存在') }}</span></div>
+            </div>
+            <button class="btn" aria-label="定位下一端点" :disabled="!targetScene" @click="locateNode(targetScene?.hash)">定位</button>
+          </div>
+          <div class="meta-row"><span class="info-label">节点哈希</span><code>{{ primary.exportHash || '—' }}</code></div>
+          <div v-if="primary.magic" class="link-controls">
+            <input v-model="nextHash" aria-label="下一端点哈希" placeholder="粘贴节点哈希" @keyup.enter="doRedirectNext" />
+            <button class="btn" :disabled="store.busy" @click="doRedirectNext">修改</button>
+          </div>
+        </section>
+
+        <div class="meta-row port-meta"><span class="info-label">端口哈希</span><code>{{ primary.hash }}</code></div>
       </div>
 
       <footer class="dialog-footer">
@@ -211,26 +207,21 @@ async function del() {
 .visibility-toggle:hover, .visibility-toggle:focus-visible { background: var(--accent-soft); color: var(--accent); }
 .visibility-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .visibility-toggle.hidden { color: var(--text-faint); }
-.node-info { display: grid; gap: 6px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
-.owner-row, .meta-row { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.endpoint-card { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
+.endpoint-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.endpoint-details { flex: 1; min-width: 0; }
+.endpoint-details h4 { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; font-weight: 400; color: var(--text-dim); }
+.endpoint-name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; font-weight: 600; }
+.endpoint-name svg, .endpoint-heading > .btn { flex: none; }
+.endpoint-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta-row { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
 .info-label { flex: 0 0 58px; font-size: 12px; color: var(--text-dim); }
-.owner-name { display: flex; align-items: center; gap: 6px; font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
-.owner-name svg { flex: none; }
-.meta-row code { font-family: monospace; font-size: 12px; color: var(--text-dim); overflow-wrap: anywhere; min-width: 0; }
-.connection-section h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-.connection-section > .hint-line { margin-bottom: 8px; }
-.link-row { padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; margin-top: 8px; }
-.link-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; min-width: 0; }
-.link-label { flex: none; font-size: 12px; color: var(--text-dim); }
-.link-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.link-controls { display: flex; align-items: center; gap: 8px; }
+.meta-row code { font-family: monospace; font-size: 12px; color: var(--text-dim); overflow-wrap: anywhere; min-width: 0; user-select: text; }
+.port-meta { padding: 0 2px; }
+.link-controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .node-edit .link-controls input { height: 34px; flex: 1; font-family: monospace; font-size: 12px; }
 .link-controls .btn { flex: none; height: 34px; }
-.peer-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
-.peer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-dim); }
-.peer-row .btn { flex: none; }
-.magic-badge { flex: none; font-size: 11px; padding: 3px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); }
-.missing-target { margin-top: 12px; }
+.magic-badge { font-size: 11px; padding: 3px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); }
 .dialog-header, .dialog-footer { flex: none; }
 .dialog-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 24px; border-top: 1px solid var(--border); }
 .footer-actions { display: flex; gap: 8px; }
