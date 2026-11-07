@@ -138,7 +138,7 @@ async function del() {
       </div>
 
       <div class="row">
-        <button class="btn danger" :disabled="scene?.isRoot || store.busy" @click="del"><AppIcon name="trash" :size="13" /> {{ scene?.isRoot ? '根节点不可删除' : '删除节点' }}</button>
+        <button class="btn danger" :disabled="(scene?.level === 1) || store.busy" @click="del"><AppIcon name="trash" :size="13" /> {{ (scene?.level === 1) ? '根节点不可删除' : '删除节点' }}</button>
         <div class="spacer" />
         <button class="btn" @click="emit('close')">取消</button>
         <button class="btn primary" :disabled="store.busy" @click="save">保存</button>

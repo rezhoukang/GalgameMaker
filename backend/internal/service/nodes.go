@@ -91,7 +91,7 @@ func (s *NodeService) DeleteScene(id uint) error {
 		if err := activeScenes(tx).First(&sc, id).Error; err != nil {
 			return errors.New("节点不存在")
 		}
-		if sc.IsRoot {
+		if sc.Level == 1 {
 			return errors.New("根节点不可删除")
 		}
 		ss, pp, err := graph(tx, sc.CanvasID)
@@ -122,7 +122,7 @@ func (s *NodeService) DeleteScene(id uint) error {
 		ids, hashes := []uint{}, []string{}
 		for _, n := range ss {
 			if removed[n.ID] {
-				if n.IsRoot {
+				if n.Level == 1 {
 					return errors.New("不能删除根节点")
 				}
 				ids = append(ids, n.ID)
@@ -138,7 +138,7 @@ func (s *NodeService) DeleteScene(id uint) error {
 		var first int64
 		tx.Model(&models.Node{}).Where("canvas_id = ? AND is_first = ?", sc.CanvasID, true).Count(&first)
 		if first == 0 {
-			if err := tx.Model(&models.Node{}).Where("canvas_id = ? AND is_root = ?", sc.CanvasID, true).Update("is_first", true).Error; err != nil {
+			if err := tx.Model(&models.Node{}).Where("canvas_id = ? AND level = ?", sc.CanvasID, 1).Update("is_first", true).Error; err != nil {
 				return err
 			}
 		}
@@ -258,7 +258,7 @@ func (s *NodeService) CreateInitialScene(canvasID uint) (*models.Node, error) {
 			return nil
 		}
 		hash := NewHash()
-		sc = &models.Node{CanvasID: canvasID, Hash: hash, AssetDir: hash, Name: "初始节点", Level: 1, IsRoot: true, IsFirst: true}
+		sc = &models.Node{CanvasID: canvasID, Hash: hash, AssetDir: hash, Name: "初始节点", Level: 1, IsFirst: true}
 		return tx.Create(sc).Error
 	})
 	return sc, err

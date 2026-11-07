@@ -3,7 +3,7 @@ package models
 import "fmt"
 
 // ValidateGraph validates the ordinary tree; magic edges never affect depth or ownership.
-// Levels are derived from ordinary connections; incoming counts are validation-only.
+// Level 1 identifies the unique root; other levels are derived from ordinary connections.
 func ValidateGraph(scenes []Node, ports []Port) error {
 	byID, byHash := map[uint]*Node{}, map[string]*Node{}
 	var root *Node
@@ -13,8 +13,7 @@ func ValidateGraph(scenes []Node, ports []Port) error {
 			return fmt.Errorf("节点标识或名称无效")
 		}
 		byID[s.ID], byHash[s.Hash] = s, s
-		s.Level = 0
-		if s.IsRoot {
+		if s.Level == 1 {
 			if root != nil {
 				return fmt.Errorf("每个工程必须恰好有一个根节点")
 			}
@@ -43,7 +42,7 @@ func ValidateGraph(scenes []Node, ports []Port) error {
 			continue
 		}
 		incoming[to.ID]++
-		if to.IsRoot || incoming[to.ID] > 1 {
+		if to.ID == root.ID || incoming[to.ID] > 1 {
 			return fmt.Errorf("根节点不能有普通入端口，其他节点至多一个普通入端口")
 		}
 		children[from.ID] = append(children[from.ID], to.ID)

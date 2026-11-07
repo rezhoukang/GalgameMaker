@@ -46,8 +46,7 @@ type Node struct {
 	Video     string    `gorm:"not null;default:'';comment:视频相对 asset_dir 的路径，例如 .versions/xxx.mp4；空串表示未指定，检查时会扫描目录中的 mp4" json:"video"` // 视频相对 asset_dir 的路径，例如 .versions/xxx.mp4；空串表示未指定，检查时会扫描目录中的 mp4
 	IsFirst   bool      `gorm:"comment:是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同" json:"first"`                                                   // 是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同
 	CreatedAt time.Time `gorm:"comment:节点创建时间，由 GORM 自动填写" json:"createdAt"`                                                             // 节点创建时间，由 GORM 自动填写
-	Level     int       `gorm:"not null;default:1;comment:普通连接树中的层级，根节点为 1；结构变化时重新计算" json:"level"`                                      // 普通连接树中的层级，根节点为 1；结构变化时重新计算
-	IsRoot    bool      `gorm:"not null;default:false;comment:是否为工程根节点；每个工程恰好一个，禁止单独删除" json:"isRoot"`                                   // 是否为工程根节点；每个工程恰好一个，禁止单独删除
+	Level     int       `gorm:"not null;default:1;comment:普通连接树中的层级，每个工程恰好一个层级为 1 的根节点且不可删除；结构变化时重新计算" json:"level"`                     // 普通连接树中的层级，每个工程恰好一个层级为 1 的根节点且不可删除；结构变化时重新计算
 	AssetDir  string    `gorm:"not null;default:'';comment:相对于工程目录的素材目录；复制内容属性时可引用其他节点的素材目录" json:"assetDir"`                            // 相对于工程目录的素材目录；复制内容属性时可引用其他节点的素材目录
 	HTMLFile  string    `gorm:"not null;default:'';comment:HTML 文件相对 asset_dir 的路径；空串表示未导入 HTML 内容" json:"htmlFile"`                     // HTML 文件相对 asset_dir 的路径；空串表示未导入 HTML 内容
 }

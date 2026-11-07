@@ -30,7 +30,6 @@ export interface Canvas {
 // 剧情节点，对应数据库 nodes 表，可关联视频或 HTML 内容。
 export interface Node {
   level: number // 普通树层级，根节点为 1，不计魔法连接
-  isRoot: boolean // 是否为工程根节点；禁止单独删除
   assetDir: string // 相对工程目录的素材目录，可通过复制属性共享引用
   htmlFile: string // HTML 文件相对素材目录的路径；空串表示未导入
   id: number // 剧情节点 ID，对应 nodes.id

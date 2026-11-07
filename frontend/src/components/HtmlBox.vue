@@ -123,8 +123,8 @@ async function commitName() {
     <div class="mm-stripe" aria-hidden="true" />
 
     <!-- 标题行 -->
-    <div class="mm-title" @click.stop="onSelect" :title="`层级 ${scene.level} · 出端口 ${outCol.length} 个${scene.isRoot ? ' · 根节点不可删除' : ''}`">
-      <span v-if="scene.isRoot" class="root-label">根</span>
+    <div class="mm-title" @click.stop="onSelect" :title="`层级 ${scene.level} · 出端口 ${outCol.length} 个${(scene.level === 1) ? ' · 根节点不可删除' : ''}`">
+      <span v-if="(scene.level === 1)" class="root-label">根</span>
       <span v-if="scene.first" class="first-badge" title="开始节点：导出后从它开始播放">
         <svg viewBox="0 0 16 16" width="10" height="10" fill="currentColor"><path d="M4 2 L14 8 L4 14 Z" /></svg>
       </span>

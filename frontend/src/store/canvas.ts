@@ -274,7 +274,7 @@ export const useCanvasStore = defineStore('canvas', {
     async deleteScene(id: number) {
       const sc = this.sceneById(id)
       if (!sc) return false
-      if (sc.isRoot) { useAppStore().notify('根节点不可删除', 'error'); return false }
+      if (sc.level === 1) { useAppStore().notify('根节点不可删除', 'error'); return false }
       if (!confirm(`删除「${sc.name}」及其普通子树？指向它们的魔法连接也会移除，可撤回。`)) return false
       return this.edit(() => api.deleteScene(id), '已删除分支，可撤回')
     },

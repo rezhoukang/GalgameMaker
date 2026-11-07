@@ -78,7 +78,7 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 		}
 		rootHash := ""
 		for _, sc := range current.Scenes {
-			if sc.IsRoot {
+			if sc.Level == 1 {
 				rootHash = sc.Hash
 			}
 		}
@@ -87,7 +87,7 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 			if sc.CanvasID != canvasID {
 				return errors.New("历史记录包含其他工程节点")
 			}
-			if sc.IsRoot && sc.Hash != rootHash {
+			if sc.Level == 1 && sc.Hash != rootHash {
 				return errors.New("不能替换根节点")
 			}
 			if sc.IsFirst {

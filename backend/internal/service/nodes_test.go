@@ -180,7 +180,7 @@ func TestContentVersionsAndCopy(t *testing.T) {
 	}
 	var dst models.Node
 	f.db.First(&dst, target.ID)
-	if dst.Video != old.Video || dst.Hash != target.Hash || dst.IsRoot {
+	if dst.Video != old.Video || dst.Hash != target.Hash || dst.Level == 1 {
 		t.Fatal("paste did not use captured properties or overwrote identity")
 	}
 	if err := f.nodes.DeleteScene(target.ID); err != nil {
@@ -302,5 +302,27 @@ func TestFolderRenameKeepsNestedResources(t *testing.T) {
 	}
 	if _, err := f.tree.CreateFolder(&parentID, "nested"); err == nil {
 		t.Fatal("duplicate folder allowed")
+	}
+}
+
+func TestLevelOneRootCreationAndPlaybackFallback(t *testing.T) {
+	f := setup(t)
+	if _, err := f.nodes.CreateInitialScene(f.canvas.ID); err != nil {
+		t.Fatal(err)
+	}
+	initial := f.view(t)
+	if len(initial.Scenes) != 1 || initial.Scenes[0].Level != 1 {
+		t.Fatal("canvas must have exactly one initial level-one node")
+	}
+	child, _ := f.child(t, f.root.ID)
+	if _, err := f.nodes.SetFirstScene(child.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.nodes.DeleteScene(child.ID); err != nil {
+		t.Fatal(err)
+	}
+	remaining := f.view(t)
+	if len(remaining.Scenes) != 1 || remaining.Scenes[0].Level != 1 || !remaining.Scenes[0].IsFirst {
+		t.Fatal("deleting playback start must restore start to the level-one root")
 	}
 }
