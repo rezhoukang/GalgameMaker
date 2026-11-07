@@ -11,6 +11,9 @@ const store = useCanvasStore()
 const app = useAppStore()
 
 const scene = computed(() => store.sceneById(props.sceneId))
+const outPortCount = computed(() =>
+  store.nodes.filter(p => p.sceneId === props.sceneId && !store.nodeIsEntry(p.id)).length
+)
 const isFirst = computed(() => store.sceneById(props.sceneId)?.first ?? false)
 const name = ref(stripExt(scene.value?.name ?? ''))
 const nameRef = ref<HTMLInputElement | null>(null)
@@ -127,7 +130,7 @@ async function del() {
       </div>
 
       <div class="field">
-        <label>所属工程 · 层级 {{ scene?.level }} · 出端口 {{ scene?.portNum }} 个</label>
+        <label>所属工程 · 层级 {{ scene?.level }} · 出端口 {{ outPortCount }} 个</label>
         <div class="file-row">
           <AppIcon name="file" :size="15" />
           <span class="fname">{{ store.canvasName }}</span>

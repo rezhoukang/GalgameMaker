@@ -13,7 +13,7 @@ func ValidateGraph(scenes []Node, ports []Port) error {
 			return fmt.Errorf("节点标识或名称无效")
 		}
 		byID[s.ID], byHash[s.Hash] = s, s
-		s.PortNum, s.OutCount, s.InCount, s.Level, s.HasMagic = 0, 0, 0, 0, false
+		s.OutCount, s.InCount, s.Level, s.HasMagic = 0, 0, 0, false
 		if s.IsRoot {
 			if root != nil {
 				return fmt.Errorf("每个工程必须恰好有一个根节点")
@@ -38,7 +38,6 @@ func ValidateGraph(scenes []Node, ports []Port) error {
 			return fmt.Errorf("端口内容类型无效")
 		}
 		ids[p.ID], hashes[p.Hash] = true, true
-		from.PortNum++
 		if p.Magic {
 			from.HasMagic, to.HasMagic = true, true
 			continue

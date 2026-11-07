@@ -30,7 +30,6 @@ export interface Canvas {
 // HTML 框：制作者做好的一个 HTML，位于画布上，内含多个节点
 export interface Node {
   level: number
-  portNum: number
   isRoot: boolean
   assetDir: string
   htmlFile: string

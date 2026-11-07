@@ -50,7 +50,6 @@ type Node struct {
 	HasMagic  bool      `json:"hasMagic"`                         // 是否有魔法端口（0/1）
 	CreatedAt time.Time `json:"createdAt"`
 	Level     int       `gorm:"not null;default:1" json:"level"`
-	PortNum   int       `gorm:"not null;default:0" json:"portNum"`
 	IsRoot    bool      `gorm:"not null;default:false" json:"isRoot"`
 	AssetDir  string    `gorm:"not null;default:''" json:"assetDir"`
 	HTMLFile  string    `gorm:"not null;default:''" json:"htmlFile"`

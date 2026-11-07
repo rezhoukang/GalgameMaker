@@ -72,7 +72,7 @@ func TestOrdinaryTreeAndRootProtection(t *testing.T) {
 	if len(v.Scenes) != 3 || len(v.Nodes) != 2 {
 		t.Fatal("ports must be stored once")
 	}
-	if v.Scenes[2].Level != 3 || v.Scenes[0].PortNum != 1 {
+	if v.Scenes[2].Level != 3 || v.Scenes[0].OutCount != 1 {
 		t.Fatal("derived levels/counts incorrect")
 	}
 	if err := f.nodes.DeleteScene(f.root.ID); err == nil {
