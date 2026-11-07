@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
 import HtmlBox from './HtmlBox.vue'
 import type { Node } from '@/types'
+import { marqueeNodeIds, selectionRect, type Point } from '@/marqueeSelection'
 import {
   BALL_R,
   CURVE_MIN_BEND,
@@ -17,6 +18,13 @@ const store = useCanvasStore()
 
 const viewportRef = ref<HTMLDivElement | null>(null)
 const spaceDown = ref(false)
+const qDown = ref(false)
+const marquee = ref<{ start: Point; end: Point; previous: number[] } | null>(null)
+const marqueeStyle = computed(() => {
+  if (!marquee.value) return {}
+  const r = selectionRect(marquee.value.start, marquee.value.end)
+  return { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' }
+})
 // 拖动结束后的 click 仍需拦截，即使用户先松开空格。
 let suppressPanClick = false
 
@@ -33,9 +41,27 @@ function screenToWorld(clientX: number, clientY: number) {
 provide('toWorld', (x: number, y: number) => screenToWorld(x, y))
 
 // ---------- 视图：平移（Ctrl 拖拽）/ 缩放（滚轮） ----------
+function selectionPoint(e: MouseEvent): Point {
+  const rect = viewportRef.value!.getBoundingClientRect()
+  return { x: Math.max(0, Math.min(rect.width, e.clientX - rect.left)), y: Math.max(0, Math.min(rect.height, e.clientY - rect.top)) }
+}
+function updateMarquee(e: MouseEvent) {
+  if (!marquee.value) return
+  marquee.value.end = selectionPoint(e)
+  store.selectScenes(marqueeNodeIds(visibleScenes.value, marquee.value.start, marquee.value.end, store.view))
+}
 function onViewDown(e: MouseEvent) {
   suppressPanClick = false
   if (e.button !== 0 && e.button !== 1) return
+  if (store.isCanvasView && qDown.value && !spaceDown.value && e.button === 0 && !e.ctrlKey) {
+    const point = selectionPoint(e)
+    marquee.value = { start: point, end: point, previous: [...store.selectedSceneIds] }
+    store.selectScenes([])
+    suppressPanClick = true
+    e.preventDefault()
+    e.stopPropagation()
+    return
+  }
   if (e.ctrlKey || spaceDown.value || e.button === 1 || e.target === viewportRef.value) {
     suppressPanClick = true
     store.beginPan(e.clientX, e.clientY)
@@ -44,13 +70,13 @@ function onViewDown(e: MouseEvent) {
   }
 }
 function onViewAction(e: MouseEvent) {
-  if (!spaceDown.value && !suppressPanClick) return
+  if (!spaceDown.value && !qDown.value && !marquee.value && !suppressPanClick) return
   e.preventDefault()
   e.stopPropagation()
   if (e.type === 'click') suppressPanClick = false
 }
 function onWheel(e: WheelEvent) {
-  if (e.deltaY === 0) return
+  if (e.deltaY === 0 || marquee.value) return
   const rect = viewportRef.value!.getBoundingClientRect()
   const sx = e.clientX - rect.left
   const sy = e.clientY - rect.top
@@ -60,11 +86,17 @@ function onWheel(e: WheelEvent) {
 
 // 用 window 统一收口 mousemove / mouseup，保证松开鼠标必然结束拖拽
 function onWindowMove(e: MouseEvent) {
+  if (marquee.value) { updateMarquee(e); return }
   const it = store.interaction
   if (!it) return
   if (it.type === 'pan') store.movePan(e.clientX, e.clientY)
 }
-function onWindowUp() {
+function onWindowUp(e?: MouseEvent) {
+  if (marquee.value) {
+    if (e) updateMarquee(e)
+    marquee.value = null
+    return
+  }
   const it = store.interaction
   if (!it) return
   if (it.type === 'pan') store.endPan()
@@ -72,9 +104,16 @@ function onWindowUp() {
 function onKey(e: KeyboardEvent) {
   const target = e.target as HTMLElement
   if (target.closest('input,textarea,select,[contenteditable="true"]')) return
-  if (e.key === 'Escape') { store.editingNode = null; store.editingScene = null; return }
+  if (e.key === 'Escape') {
+    if (marquee.value) { store.selectScenes(marquee.value.previous); marquee.value = null }
+    else if (!document.querySelector('.modal-mask')) store.selectScenes([])
+    qDown.value = false
+    store.editingNode = null; store.editingScene = null; return
+  }
   if (document.querySelector('.modal-mask') || !store.isCanvasView) return
   const ctrl = e.ctrlKey || e.metaKey
+  if (e.code === 'KeyQ' && !ctrl && !e.altKey) { qDown.value = true; e.preventDefault(); e.stopPropagation(); return }
+  if (marquee.value) { e.preventDefault(); e.stopPropagation(); return }
   if (e.code === 'Space') { spaceDown.value = true; e.preventDefault(); e.stopPropagation() }
   else if (ctrl && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? store.redo() : store.undo() }
   else if (ctrl && e.key.toLowerCase() === 'y') { e.preventDefault(); store.redo() }
@@ -85,12 +124,13 @@ function onKey(e: KeyboardEvent) {
   else if (ctrl && e.key === '0') { e.preventDefault(); fitToContent() }
 }
 function onKeyUp(e: KeyboardEvent) {
+  if (e.code === 'KeyQ') { qDown.value = false; return }
   if (e.code !== 'Space' || !spaceDown.value) return
   e.preventDefault()
   e.stopPropagation()
   spaceDown.value = false
 }
-function onBlur() { spaceDown.value = false; store.endPan() }
+function onBlur() { spaceDown.value = false; qDown.value = false; marquee.value = null; store.endPan() }
 onMounted(() => {
   window.addEventListener('keydown', onKey, true)
   window.addEventListener('keyup', onKeyUp, true)
@@ -137,7 +177,10 @@ function fitToContent() {
 // 只在切换画布时适配一次视图；之后的增删/折叠等操作一律不动缩放（缩放由用户 滚轮控制）
 watch(
   () => store.canvasId,
-  () => setTimeout(() => { if (store.view.x === 0 && store.view.y === 0 && store.view.zoom === 1) fitToContent() }, 0)
+  () => {
+    onBlur()
+    setTimeout(() => { if (store.view.x === 0 && store.view.y === 0 && store.view.zoom === 1) fitToContent() }, 0)
+  }
 )
 
 // 思维导图 S 曲线：水平出发、水平进入，中间平滑拐弯（无箭头）
@@ -193,7 +236,7 @@ const worldStyle = computed(() => ({
     <div
       ref="viewportRef"
       class="viewport"
-      :class="{ 'pan-ready': spaceDown, panning: store.interaction?.type === 'pan' }"
+      :class="{ 'pan-ready': spaceDown, panning: store.interaction?.type === 'pan', 'select-ready': (qDown && !spaceDown) || marquee }"
       @mousedown.capture="onViewDown"
       @click.capture="onViewAction"
       @dblclick.capture="onViewAction"
@@ -227,6 +270,7 @@ const worldStyle = computed(() => ({
         </div>
 
       </template>
+      <div v-if="marquee" class="selection-box" :style="marqueeStyle" aria-hidden="true" />
     </div>
   </div>
 </template>
@@ -256,6 +300,8 @@ const worldStyle = computed(() => ({
   cursor: grabbing !important;
   user-select: none;
 }
+.viewport.select-ready, .viewport.select-ready :deep(*) { cursor: crosshair !important; user-select: none !important; }
+.selection-box { position: absolute; border: 1px solid var(--accent); background: var(--accent-soft); pointer-events: none; z-index: 20; }
 .world {
   position: absolute;
   top: 0;

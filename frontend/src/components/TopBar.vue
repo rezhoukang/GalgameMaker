@@ -10,6 +10,7 @@ const tree = useTreeStore()
 const canvas = useCanvasStore()
 
 const shortcuts = [
+  { label: '框选节点', keys: '按住 Q + 左键拖动' },
   { label: '撤回', keys: 'Ctrl + Z' },
   { label: '重做（恢复撤回）', keys: 'Ctrl + Shift + Z / Ctrl + Y' },
   { label: '复制节点内容属性', keys: 'Ctrl + C' },

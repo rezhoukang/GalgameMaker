@@ -24,7 +24,7 @@ function stripExt(n: string): string {
 }
 
 const height = computed(() => store.sceneHeight(props.scene.id))
-const selected = computed(() => store.selectedSceneId === props.scene.id)
+const selected = computed(() => store.selectedSceneIds.includes(props.scene.id))
 const foldState = computed(() => store.foldState(props.scene.id))
 const foldLabel = computed(() => ({
   expanded: '全部展开：点击切换为紧凑，只显示下一层',

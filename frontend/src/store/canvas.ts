@@ -69,6 +69,7 @@ export const useCanvasStore = defineStore('canvas', {
     scenes: [] as Node[],
     nodes: [] as PortItem[],
     selectedSceneId: null as number | null,
+    selectedSceneIds: [] as number[],
     view: { x: 0, y: 0, zoom: 1 } as ViewState,
     interaction: null as Interaction,
     editingNode: null as PortItem | null,
@@ -170,6 +171,7 @@ export const useCanvasStore = defineStore('canvas', {
       this.canvasId = null; this.canvasName = ''; this.scenes = []; this.nodes = []
       this.snapshot = null; this.past = []; this.future = []
       this.selectedSceneId = null; this.editingNode = null; this.editingScene = null
+      this.selectedSceneIds = []
       this.collapsedSceneIds = []; this.interaction = null; this.view = { x: 0, y: 0, zoom: 1 }
       this.compactSceneIds = []
     },
@@ -211,6 +213,7 @@ export const useCanvasStore = defineStore('canvas', {
         this.past = []; this.future = []; this.collapsedSceneIds = []
         this.compactSceneIds = []
         this.editingNode = null; this.editingScene = null; this.selectedSceneId = null
+        this.selectedSceneIds = []
         this.view = { x: 0, y: 0, zoom: 1 }
         try {
           const cache = JSON.parse(localStorage.getItem(`galgame-history-v1-${id}`) || 'null')
@@ -231,6 +234,7 @@ export const useCanvasStore = defineStore('canvas', {
       const { visibleIds, compactIds } = this.treeVisibility
       const positions = computeMindLayout(this.scenes.filter(s => visibleIds.has(s.id)), this.nodes, compactIds)
       for (const sc of this.scenes) { const p = positions.get(sc.id); if (p) { sc.x = p.x; sc.y = p.y } }
+      this.selectScenes(this.selectedSceneIds.filter(id => visibleIds.has(id)))
     },
 
     async edit(action: () => Promise<unknown>, message = ''): Promise<boolean> {
@@ -281,7 +285,11 @@ export const useCanvasStore = defineStore('canvas', {
     },
     undo() { return this.travel(false) },
     redo() { return this.travel(true) },
-    selectScene(id: number) { this.selectedSceneId = id },
+    selectScenes(ids: number[]) {
+      this.selectedSceneIds = [...new Set(ids)].filter(id => this.sceneById(id))
+      this.selectedSceneId = this.selectedSceneIds.length === 1 ? this.selectedSceneIds[0] : null
+    },
+    selectScene(id: number) { this.selectScenes([id]) },
     renameScene(id: number, name: string) { return this.edit(() => api.updateScene(id, {name}), '已重命名') },
     saveSceneProperties(id: number, name: string, ports: { id: number; name?: string; isShow: boolean }[]) {
       return this.edit(() => api.updateScene(id, {name, ports}), '已保存节点属性')
@@ -313,10 +321,10 @@ export const useCanvasStore = defineStore('canvas', {
     jumpToScene(nodeId: number) {
       const sc = this.sceneById(nodeId)
       if (!sc) return
-      this.selectedSceneId = nodeId
       this.collapsedSceneIds = []
       this.compactSceneIds = []
       this.relayout()
+      this.selectScene(nodeId)
       this.editingNode = null
       this.editingScene = null
       const cx = sc.x + NODE_W / 2
