@@ -21,7 +21,6 @@ async function save() {
   <div class="modal-mask variables-mask" @click.self="emit('close')">
     <section class="modal variables-modal" role="dialog" aria-modal="true" aria-labelledby="variables-title">
       <h3 id="variables-title">剧情变量</h3>
-      <p class="hint">{{ store.canvasName }} · 定义数值变量，端口可检查条件、增减或直接设值。</p>
       <div class="variable-list">
         <div v-for="(v, i) in rows" :key="i" class="variable-row">
           <label>名称<input v-model="v.name" :aria-label="`变量 ${i + 1} 名称`" placeholder="例如：勇气" :disabled="store.busy" /></label>
@@ -30,7 +29,7 @@ async function save() {
         </div>
         <p v-if="!rows.length" class="empty">暂无变量，添加后即可在端口设置中使用。</p>
       </div>
-      <button class="btn" :disabled="store.busy" @click="add">＋ 添加变量</button>
+      <button class="btn add-variable" :disabled="store.busy" @click="add">＋ 添加变量</button>
       <p class="hint footnote">需要清空变量时，在对应端口选择“设值”并填 0。正在被端口使用的变量不可删除。修改剧情配置后重新导出，旧版玩家存档需重新开始。</p>
       <footer class="row"><button class="btn" @click="emit('close')">取消</button><button class="btn primary" :disabled="store.busy" @click="save">保存变量</button></footer>
     </section>
@@ -38,9 +37,11 @@ async function save() {
 </template>
 <style scoped>
 .variables-mask { z-index: 1100; }
-.variables-modal { width: min(720px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.variables-modal { width: min(720px, calc(100vw - 32px)); height: min(620px, calc(100dvh - 32px)); display: flex; flex-direction: column; overflow: hidden; }
+.variables-modal > :not(.variable-list) { flex-shrink: 0; }
+.add-variable { align-self: flex-start; }
 .hint { color: var(--text-dim); font-size: 12px; line-height: 1.7; }
-.variable-list { max-height: 380px; overflow-y: auto; margin: 16px 0; }
+.variable-list { flex: 1; min-height: 0; overflow-y: auto; margin: 0 0 16px; padding-right: 6px; scrollbar-gutter: stable; }
 .variable-row { display: grid; grid-template-columns: minmax(120px,1fr) 110px 32px; align-items: end; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .variable-row label { font-size: 12px; margin: 0; }
 .variable-row input { margin-top: 5px; }

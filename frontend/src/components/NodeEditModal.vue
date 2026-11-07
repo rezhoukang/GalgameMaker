@@ -99,65 +99,68 @@ async function del() {
       </header>
 
       <div class="dialog-body">
-        <div class="field">
-          <label for="port-option-content">选项内容</label>
-          <div class="option-input">
-            <input
-              id="port-option-content"
-              ref="nameRef"
-              v-model="name"
-              placeholder="内容结束后显示的选项文案"
-              @keyup.enter="save"
-              @keyup.esc="emit('close')"
-            />
-            <button
-              type="button"
-              class="visibility-toggle"
-              :class="{ hidden: !isShow }"
-              :aria-label="isShow ? '隐藏选项' : '显示选项'"
-              :title="isShow ? '隐藏选项' : '显示选项'"
-              :aria-pressed="isShow"
-              :disabled="store.busy"
-              @click="isShow = !isShow"
-            >
-              <AppIcon :name="isShow ? 'eye' : 'eye-off'" :size="18" />
-            </button>
+        <div class="dialog-column port-details">
+          <div class="field">
+            <label for="port-option-content">选项内容</label>
+            <div class="option-input">
+              <input
+                id="port-option-content"
+                ref="nameRef"
+                v-model="name"
+                placeholder="内容结束后显示的选项文案"
+                @keyup.enter="save"
+                @keyup.esc="emit('close')"
+              />
+              <button
+                type="button"
+                class="visibility-toggle"
+                :class="{ hidden: !isShow }"
+                :aria-label="isShow ? '隐藏选项' : '显示选项'"
+                :title="isShow ? '隐藏选项' : '显示选项'"
+                :aria-pressed="isShow"
+                :disabled="store.busy"
+                @click="isShow = !isShow"
+              >
+                <AppIcon :name="isShow ? 'eye' : 'eye-off'" :size="18" />
+              </button>
+            </div>
           </div>
+
+          <section class="endpoint-card" aria-labelledby="source-node-title">
+            <div class="endpoint-heading">
+              <div class="endpoint-details">
+                <h4 id="source-node-title">所属节点</h4>
+                <div class="endpoint-name" :title="sourceScene?.name"><AppIcon name="file" :size="14" /><span>{{ stripExt(sourceScene?.name || '节点不存在') }}</span></div>
+              </div>
+              <button class="btn" aria-label="定位所属节点" :disabled="!sourceScene" @click="locateNode(sourceScene?.hash)">定位</button>
+            </div>
+            <div class="meta-row"><span class="info-label">节点哈希</span><code>{{ sourceScene?.hash || '—' }}</code></div>
+            <div v-if="primary.magic" class="link-controls">
+              <input v-model="prevHash" aria-label="所属节点哈希" placeholder="粘贴节点哈希" @keyup.enter="doRedirectPrev" />
+              <button class="btn" :disabled="store.busy" @click="doRedirectPrev">修改</button>
+            </div>
+          </section>
+
+          <section class="endpoint-card" aria-labelledby="target-node-title">
+            <div class="endpoint-heading">
+              <div class="endpoint-details">
+                <h4 id="target-node-title">下一端点 <span v-if="primary.magic" class="magic-badge">魔法连接</span></h4>
+                <div class="endpoint-name" :title="targetScene?.name"><AppIcon name="file" :size="14" /><span>{{ stripExt(targetScene?.name || '节点不存在') }}</span></div>
+              </div>
+              <button class="btn" aria-label="定位下一端点" :disabled="!targetScene" @click="locateNode(targetScene?.hash)">定位</button>
+            </div>
+            <div class="meta-row"><span class="info-label">节点哈希</span><code>{{ primary.exportHash || '—' }}</code></div>
+            <div v-if="primary.magic" class="link-controls">
+              <input v-model="nextHash" aria-label="下一端点哈希" placeholder="粘贴节点哈希" @keyup.enter="doRedirectNext" />
+              <button class="btn" :disabled="store.busy" @click="doRedirectNext">修改</button>
+            </div>
+          </section>
+
+          <div class="meta-row port-meta"><span class="info-label">端口哈希</span><code>{{ primary.hash }}</code></div>
         </div>
-
-        <PortRulesEditor v-model="rules" />
-
-        <section class="endpoint-card" aria-labelledby="source-node-title">
-          <div class="endpoint-heading">
-            <div class="endpoint-details">
-              <h4 id="source-node-title">所属节点</h4>
-              <div class="endpoint-name" :title="sourceScene?.name"><AppIcon name="file" :size="14" /><span>{{ stripExt(sourceScene?.name || '节点不存在') }}</span></div>
-            </div>
-            <button class="btn" aria-label="定位所属节点" :disabled="!sourceScene" @click="locateNode(sourceScene?.hash)">定位</button>
-          </div>
-          <div class="meta-row"><span class="info-label">节点哈希</span><code>{{ sourceScene?.hash || '—' }}</code></div>
-          <div v-if="primary.magic" class="link-controls">
-            <input v-model="prevHash" aria-label="所属节点哈希" placeholder="粘贴节点哈希" @keyup.enter="doRedirectPrev" />
-            <button class="btn" :disabled="store.busy" @click="doRedirectPrev">修改</button>
-          </div>
-        </section>
-
-        <section class="endpoint-card" aria-labelledby="target-node-title">
-          <div class="endpoint-heading">
-            <div class="endpoint-details">
-              <h4 id="target-node-title">下一端点 <span v-if="primary.magic" class="magic-badge">魔法连接</span></h4>
-              <div class="endpoint-name" :title="targetScene?.name"><AppIcon name="file" :size="14" /><span>{{ stripExt(targetScene?.name || '节点不存在') }}</span></div>
-            </div>
-            <button class="btn" aria-label="定位下一端点" :disabled="!targetScene" @click="locateNode(targetScene?.hash)">定位</button>
-          </div>
-          <div class="meta-row"><span class="info-label">节点哈希</span><code>{{ primary.exportHash || '—' }}</code></div>
-          <div v-if="primary.magic" class="link-controls">
-            <input v-model="nextHash" aria-label="下一端点哈希" placeholder="粘贴节点哈希" @keyup.enter="doRedirectNext" />
-            <button class="btn" :disabled="store.busy" @click="doRedirectNext">修改</button>
-          </div>
-        </section>
-
-        <div class="meta-row port-meta"><span class="info-label">端口哈希</span><code>{{ primary.hash }}</code></div>
+        <div class="dialog-column port-rules">
+          <PortRulesEditor v-model="rules" />
+        </div>
       </div>
 
       <footer class="dialog-footer">
@@ -173,7 +176,8 @@ async function del() {
 
 <style scoped>
 .node-edit {
-  width: min(520px, calc(100vw - 32px));
+  width: min(960px, calc(100vw - 32px));
+  height: min(600px, calc(100dvh - 32px));
   max-height: calc(100dvh - 32px);
   display: flex;
   flex-direction: column;
@@ -195,7 +199,9 @@ async function del() {
   color: var(--text-dim);
 }
 .close-btn:hover { background: var(--bg-soft); color: var(--text); }
-.dialog-body { padding: 16px 24px; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+.dialog-body { padding: 16px 24px; overflow: hidden; min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 20px; }
+.dialog-column { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; overflow-y: auto; padding-right: 4px; }
+.dialog-column > * { flex-shrink: 0; }
 .node-edit .field { margin: 0; }
 .node-edit .field > label { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
 .node-edit input { min-width: 0; height: 38px; }
@@ -239,6 +245,10 @@ async function del() {
 .footer-actions { display: flex; gap: 8px; }
 .dialog-footer .btn { min-height: 34px; }
 .dialog-footer .danger { color: var(--danger); }
+@media (max-width: 800px) {
+  .dialog-body { display: flex; flex-direction: column; overflow-y: auto; }
+  .dialog-column { flex: none; overflow: visible; padding-right: 0; }
+}
 @media (max-width: 480px) {
   .dialog-header, .dialog-body { padding-left: 16px; padding-right: 16px; }
   .dialog-footer { padding: 12px 16px; gap: 8px; }
