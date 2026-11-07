@@ -44,7 +44,7 @@ function onBackgroundClick() {
     <!-- HTML 框编辑弹窗 -->
     <HtmlBoxEditModal
       v-if="canvas.editingScene != null"
-      :scene-id="canvas.editingScene"
+      :node-id="canvas.editingScene"
       @close="canvas.editingScene = null"
     />
 

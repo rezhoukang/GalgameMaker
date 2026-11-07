@@ -85,13 +85,13 @@ export const api = {
     return request<Node>(`/api/scenes/${id}/html`, { method: 'PUT', body: fd })
   },
   // 从节点的右侧加号创建下一跳：新增出端口 + 右侧空白节点（带入端口），两端共用同一哈希
-  createNextNode: (sceneId: number) =>
-    request<{ scene: Node; outNode: PortItem; entryNode: null }>(`/api/scenes/${sceneId}/next`, {
+  createNextNode: (nodeId: number) =>
+    request<{ scene: Node; outNode: PortItem; entryNode: null }>(`/api/scenes/${nodeId}/next`, {
       method: 'POST'
     }),
   // 新建魔法出端口并连向指定哈希的节点（不画线、导出生效）
-  createMagicPort: (sceneId: number, hash: string) =>
-    request<{ outNode: PortItem; entryNode: null }>(`/api/scenes/${sceneId}/magic-port`, {
+  createMagicPort: (nodeId: number, hash: string) =>
+    request<{ outNode: PortItem; entryNode: null }>(`/api/scenes/${nodeId}/magic-port`, {
       method: 'POST',
       body: JSON.stringify({ hash })
     }),

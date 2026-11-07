@@ -53,7 +53,7 @@ func (s *NodeService) CheckCanvas(canvasID uint) ([]CanvasIssue, error) {
 	outs := map[uint][]models.Port{}
 	first := 0
 	for _, p := range pp {
-		outs[p.SceneID] = append(outs[p.SceneID], p)
+		outs[p.NodeID] = append(outs[p.NodeID], p)
 	}
 	for _, sc := range ss {
 		byHash[sc.Hash] = sc

@@ -6,11 +6,11 @@ import { CHILD_GAP, LEVEL_GAP, NODE_H, NODE_W, PORT_PAD, PORT_ROW_H, ROOT_X, ROO
 import type { Node, PortItem } from '@/types'
 
 /** 布局占位高度：卡片固定 NODE_H，但按端口散开列高预留空间（避免子节点与端口重叠） */
-export function sceneDisplayHeight(sceneId: number, nodes: PortItem[]): number {
+export function sceneDisplayHeight(nodeId: number, nodes: PortItem[]): number {
   let inCount = 0
   let outCount = 0
   for (const n of nodes) {
-    if (n.sceneId !== sceneId) continue
+    if (n.nodeId !== nodeId) continue
     if (n.entry) inCount++
     else outCount++
   }
@@ -18,7 +18,7 @@ export function sceneDisplayHeight(sceneId: number, nodes: PortItem[]): number {
   return Math.max(NODE_H, portH)
 }
 
-/** 计算所有节点的思维导图坐标；collapsedIds 为折叠的节点（其子树不参与布局）；返回 Map<sceneId, {x,y}> */
+/** 计算所有节点的思维导图坐标；collapsedIds 为折叠的节点（其子树不参与布局）；返回 Map<nodeId, {x,y}> */
 export function computeMindLayout(
   scenes: Node[],
   nodes: PortItem[],
@@ -31,8 +31,8 @@ export function computeMindLayout(
     if (n.entry || n.magic) continue // 只从普通出端口出发（魔法端口不参与布局）
     const pair = nodes.find((x) => x.id !== n.id && x.hash === n.hash)
     if (!pair) continue // 无配对（空端口）不参与
-    const a = n.sceneId
-    const b = pair.sceneId
+    const a = n.nodeId
+    const b = pair.nodeId
     if (a === b) continue
     if (collapsedIds.has(a)) continue // 父已折叠：子树不参与布局
     if (!parentOf.has(b)) parentOf.set(b, a) // 树：子节点只有一个父

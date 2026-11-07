@@ -49,7 +49,7 @@ function portColor(nodes: PortItem[], nodeId: number): string {
     return MIND_COLORS[0]
   }
   // 出端口：按同框出端口顺序取色
-  const peers = nodes.filter((n) => n.sceneId === node.sceneId && !n.entry)
+  const peers = nodes.filter((n) => n.nodeId === node.nodeId && !n.entry)
   const idx = Math.max(0, peers.findIndex((n) => n.id === nodeId))
   return MIND_COLORS[idx % MIND_COLORS.length]
 }
@@ -87,7 +87,7 @@ export const useCanvasStore = defineStore('canvas', {
     isCanvasView: (s) => s.canvasId != null,
 
     /** 节点是否已折叠子树 */
-    isCollapsed: (s) => (sceneId: number) => s.collapsedSceneIds.includes(sceneId),
+    isCollapsed: (s) => (nodeId: number) => s.collapsedSceneIds.includes(nodeId),
 
     /** 节点卡片渲染高度：固定 NODE_H（布局占位见 mindLayout.sceneDisplayHeight） */
     sceneHeight: (s) => (_sceneId: number) => NODE_H,
@@ -108,7 +108,7 @@ export const useCanvasStore = defineStore('canvas', {
       if (!node || node.entry) return null // 入端口无「连接去向」
       const toNode = pairOf(s.nodes, nodeId)
       if (!toNode) return null
-      const toScene = s.scenes.find((sc) => sc.id === toNode.sceneId)
+      const toScene = s.scenes.find((sc) => sc.id === toNode.nodeId)
       return { toNode, toScene }
     },
 
@@ -118,7 +118,7 @@ export const useCanvasStore = defineStore('canvas', {
       if (!node || !node.entry) return [] // 出端口无「被谁连入」
       const fromNode = pairOf(s.nodes, nodeId)
       if (!fromNode) return []
-      const fromScene = s.scenes.find((sc) => sc.id === fromNode.sceneId)
+      const fromScene = s.scenes.find((sc) => sc.id === fromNode.nodeId)
       return [{ fromNode, fromScene }]
     },
 
@@ -126,7 +126,7 @@ export const useCanvasStore = defineStore('canvas', {
     pairInfo: (s) => (nodeId: number) => {
       const peer = pairOf(s.nodes, nodeId)
       if (!peer) return null
-      const peerScene = s.scenes.find((sc) => sc.id === peer.sceneId)
+      const peerScene = s.scenes.find((sc) => sc.id === peer.nodeId)
       return { peer, peerScene }
     },
 
@@ -138,16 +138,16 @@ export const useCanvasStore = defineStore('canvas', {
       if (!peer) return null
       const outNode = node.entry ? peer : node
       const inNode = node.entry ? node : peer
-      const prevScene = s.scenes.find((sc) => sc.id === outNode.sceneId)
-      const nextScene = s.scenes.find((sc) => sc.id === inNode.sceneId)
+      const prevScene = s.scenes.find((sc) => sc.id === outNode.nodeId)
+      const nextScene = s.scenes.find((sc) => sc.id === inNode.nodeId)
       return { prevScene, nextScene }
     },
 
     /** 端口在画布上的世界坐标：入端口贴节点左边缘、出端口贴右边缘，以固定行距散开（卡片高度不变） */
     ballWorld: (s) => (node: PortItem) => {
-      const scene = s.scenes.find((sc) => sc.id === node.sceneId)
+      const scene = s.scenes.find((sc) => sc.id === node.nodeId)
       if (!scene) return { x: 0, y: 0 }
-      const mine = s.nodes.filter((n) => n.sceneId === scene.id)
+      const mine = s.nodes.filter((n) => n.nodeId === scene.id)
       const isEntry = node.entry
       const col = isEntry ? mine.filter((n) => n.entry) : mine.filter((n) => !n.entry)
       const idx = Math.max(0, col.findIndex((n) => n.id === node.id))
@@ -173,7 +173,7 @@ export const useCanvasStore = defineStore('canvas', {
       this.nodes = view.nodes.flatMap(p => {
         const out = {...p, entry: false}
         const targetId = byHash.get(p.exportHash)
-        return targetId == null ? [out] : [out, {...out, id: -p.id, sceneId: targetId, entry: true}]
+        return targetId == null ? [out] : [out, {...out, id: -p.id, nodeId: targetId, entry: true}]
       })
       if (this.selectedSceneId != null && !this.sceneById(this.selectedSceneId)) this.selectedSceneId = null
       this.collapsedSceneIds = this.collapsedSceneIds.filter(id => this.sceneById(id))
@@ -295,15 +295,15 @@ export const useCanvasStore = defineStore('canvas', {
     },
 
     /** 定位视图到某个节点并选中（魔法跳跃） */
-    jumpToScene(sceneId: number) {
-      const sc = this.sceneById(sceneId)
+    jumpToScene(nodeId: number) {
+      const sc = this.sceneById(nodeId)
       if (!sc) return
-      this.selectedSceneId = sceneId
+      this.selectedSceneId = nodeId
       this.collapsedSceneIds = []
       this.editingNode = null
       this.editingScene = null
       const cx = sc.x + NODE_W / 2
-      const cy = sc.y + this.sceneHeight(sceneId) / 2
+      const cy = sc.y + this.sceneHeight(nodeId) / 2
       this.view.x = window.innerWidth / 2 - cx * this.view.zoom
       this.view.y = window.innerHeight / 2 - cy * this.view.zoom
     },
@@ -379,10 +379,10 @@ export const useCanvasStore = defineStore('canvas', {
     },
 
     /** 折叠/展开某节点的子树：只隐藏/显示，不重排坐标（避免收起时节点位移） */
-    toggleCollapse(sceneId: number) {
-      const i = this.collapsedSceneIds.indexOf(sceneId)
+    toggleCollapse(nodeId: number) {
+      const i = this.collapsedSceneIds.indexOf(nodeId)
       if (i >= 0) this.collapsedSceneIds.splice(i, 1)
-      else this.collapsedSceneIds.push(sceneId)
+      else this.collapsedSceneIds.push(nodeId)
       this.saveCache()
     }
   }

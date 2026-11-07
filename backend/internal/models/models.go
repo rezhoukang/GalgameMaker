@@ -57,7 +57,7 @@ type Port struct {
 	ID         uint      `gorm:"primaryKey;comment:出端口自增主键；前端派生的入端口使用对应负 ID" json:"id"`                                        // 出端口自增主键；前端派生的入端口使用对应负 ID
 	Hash       string    `gorm:"size:32;uniqueIndex;not null;comment:出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步" json:"hash"`             // 出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步
 	Name       string    `gorm:"column:option_content;not null;default:'选项';comment:选项显示文案，数据库列名为 option_content" json:"name"` // 选项显示文案，数据库列名为 option_content
-	SceneID    uint      `gorm:"not null;index;comment:所属源节点 ID，关联 nodes.id；字段沿用 scene_id 名称" json:"sceneId"`                  // 所属源节点 ID，关联 nodes.id；字段沿用 scene_id 名称
+	NodeID     uint      `gorm:"not null;index;comment:所属源节点 ID，关联 nodes.id" json:"nodeId"`                                    // 所属源节点 ID，关联 nodes.id
 	TargetKind string    `gorm:"size:8;not null;default:mp4;comment:跳转后播放目标节点的内容类型：mp4 为视频，html 为 HTML 页面" json:"targetKind"`  // 跳转后播放目标节点的内容类型：mp4 为视频，html 为 HTML 页面
 	Entry      bool      `gorm:"-" json:"entry"`                                                                               // 仅供 API 和前端区分方向，不入库；后端出端口为 false，前端派生入端口为 true
 	Magic      bool      `gorm:"not null;default:false;comment:是否为魔法出端口；true 不画连接线，也不参与普通树层级和子树归属" json:"magic"`               // 是否为魔法出端口；true 不画连接线，也不参与普通树层级和子树归属

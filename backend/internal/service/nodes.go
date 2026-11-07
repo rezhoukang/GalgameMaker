@@ -37,7 +37,7 @@ func graph(tx *gorm.DB, canvasID uint) ([]models.Node, []models.Port, error) {
 		ids = append(ids, sc.ID)
 	}
 	if len(ids) > 0 {
-		if err := tx.Where("scene_id IN ?", ids).Order("sort_order, id").Find(&pp).Error; err != nil {
+		if err := tx.Where("node_id IN ?", ids).Order("sort_order, id").Find(&pp).Error; err != nil {
 			return nil, nil, err
 		}
 	}
@@ -105,7 +105,7 @@ func (s *NodeService) DeleteScene(id uint) error {
 		children := map[uint][]uint{}
 		for _, p := range pp {
 			if !p.Magic {
-				children[p.SceneID] = append(children[p.SceneID], byHash[p.ExportHash])
+				children[p.NodeID] = append(children[p.NodeID], byHash[p.ExportHash])
 			}
 		}
 		removed := map[uint]bool{}
@@ -129,7 +129,7 @@ func (s *NodeService) DeleteScene(id uint) error {
 				hashes = append(hashes, n.Hash)
 			}
 		}
-		if err := tx.Where("scene_id IN ? OR export_hash IN ?", ids, hashes).Delete(&models.Port{}).Error; err != nil {
+		if err := tx.Where("node_id IN ? OR export_hash IN ?", ids, hashes).Delete(&models.Port{}).Error; err != nil {
 			return err
 		}
 		if err := tx.Where("id IN ?", ids).Delete(&models.Node{}).Error; err != nil {
@@ -194,7 +194,7 @@ func (s *NodeService) BreakConnection(id uint) error {
 			return errors.New("普通分支不能悬空，请修改上一节点移动分支，或删除分支")
 		}
 		var sc models.Node
-		if err := activeScenes(tx).First(&sc, p.SceneID).Error; err != nil {
+		if err := activeScenes(tx).First(&sc, p.NodeID).Error; err != nil {
 			return err
 		}
 		if err := tx.Delete(&p).Error; err != nil {
@@ -210,14 +210,14 @@ func (s *NodeService) RedirectNode(id uint, hash, side string) error {
 		if err := activePorts(tx).First(&p, id).Error; err != nil {
 			return err
 		}
-		if err := activeScenes(tx).First(&from, p.SceneID).Error; err != nil {
+		if err := activeScenes(tx).First(&from, p.NodeID).Error; err != nil {
 			return err
 		}
 		if err := tx.Where("hash = ? AND canvas_id = ?", strings.TrimSpace(hash), from.CanvasID).First(&to).Error; err != nil {
 			return errors.New("目标节点不存在于当前工程")
 		}
 		if side == "prev" {
-			p.SceneID = to.ID
+			p.NodeID = to.ID
 		} else if side == "next" {
 			p.ExportHash = to.Hash
 		} else {
@@ -265,10 +265,10 @@ func (s *NodeService) CreateInitialScene(canvasID uint) (*models.Node, error) {
 }
 func nextPort(tx *gorm.DB, sc models.Node, target string, magic bool) models.Port {
 	var count int64
-	tx.Model(&models.Port{}).Where("scene_id = ?", sc.ID).Count(&count)
+	tx.Model(&models.Port{}).Where("node_id = ?", sc.ID).Count(&count)
 	var max int
-	tx.Model(&models.Port{}).Where("scene_id = ?", sc.ID).Select("COALESCE(MAX(sort_order), 0)").Scan(&max)
-	return models.Port{Hash: NewHash(), Name: fmt.Sprintf("选项 %d", count+1), SceneID: sc.ID, ExportHash: target, Magic: magic, ShowOption: true, TargetKind: "mp4", SortOrder: max + 1}
+	tx.Model(&models.Port{}).Where("node_id = ?", sc.ID).Select("COALESCE(MAX(sort_order), 0)").Scan(&max)
+	return models.Port{Hash: NewHash(), Name: fmt.Sprintf("选项 %d", count+1), NodeID: sc.ID, ExportHash: target, Magic: magic, ShowOption: true, TargetKind: "mp4", SortOrder: max + 1}
 }
 func (s *NodeService) CreateNextNode(sceneID uint) (*models.Node, *models.Port, *models.Port, error) {
 	var sc models.Node
@@ -398,5 +398,5 @@ func activeScenes(db *gorm.DB) *gorm.DB {
 	return db.Where("canvas_id IN (?)", db.Model(&models.Canvas{}).Select("id"))
 }
 func activePorts(db *gorm.DB) *gorm.DB {
-	return db.Where("scene_id IN (?)", activeScenes(db).Model(&models.Node{}).Select("id"))
+	return db.Where("node_id IN (?)", activeScenes(db).Model(&models.Node{}).Select("id"))
 }

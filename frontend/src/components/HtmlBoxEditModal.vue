@@ -4,17 +4,17 @@ import { useCanvasStore } from '@/store/canvas'
 import { useAppStore } from '@/store/app'
 import AppIcon from './AppIcon.vue'
 
-const props = defineProps<{ sceneId: number }>()
+const props = defineProps<{ nodeId: number }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const store = useCanvasStore()
 const app = useAppStore()
 
-const scene = computed(() => store.sceneById(props.sceneId))
+const scene = computed(() => store.sceneById(props.nodeId))
 const outPortCount = computed(() =>
-  store.nodes.filter(p => p.sceneId === props.sceneId && !store.nodeIsEntry(p.id)).length
+  store.nodes.filter(p => p.nodeId === props.nodeId && !store.nodeIsEntry(p.id)).length
 )
-const isFirst = computed(() => store.sceneById(props.sceneId)?.first ?? false)
+const isFirst = computed(() => store.sceneById(props.nodeId)?.first ?? false)
 const name = ref(stripExt(scene.value?.name ?? ''))
 const nameRef = ref<HTMLInputElement | null>(null)
 const videoInput = ref<HTMLInputElement | null>(null)

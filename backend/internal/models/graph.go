@@ -28,7 +28,7 @@ func ValidateGraph(scenes []Node, ports []Port) error {
 	incoming := map[uint]int{} // 普通入端口数量仅在校验期间统计，不写入节点记录。
 	ids, hashes := map[uint]bool{}, map[string]bool{}
 	for _, p := range ports {
-		from, to := byID[p.SceneID], byHash[p.ExportHash]
+		from, to := byID[p.NodeID], byHash[p.ExportHash]
 		if from == nil || to == nil || from.CanvasID != to.CanvasID {
 			return fmt.Errorf("端口「%s」目标不存在或跨工程", p.Name)
 		}

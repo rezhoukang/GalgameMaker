@@ -29,7 +29,7 @@ const isFolded = computed(() => store.isCollapsed(props.scene.id))
 
 // 出端口列：加号按钮放在即将新增出的那个端口位置（最后一个出端口下一行；无端口时在卡片中心）
 const outCol = computed(() =>
-  store.nodes.filter((n) => n.sceneId === props.scene.id && !store.nodeIsEntry(n.id))
+  store.nodes.filter((n) => n.nodeId === props.scene.id && !store.nodeIsEntry(n.id))
 )
 const addBtnTop = computed(() => {
   const n = outCol.value.length
@@ -45,7 +45,7 @@ const addPos = computed(() => ({
 
 // 节点分支色：跟随入端口（父节点分支色）；根节点用默认蓝
 const entry = computed(() =>
-  store.nodes.find((n) => n.sceneId === props.scene.id && !n.magic && store.nodeIsEntry(n.id))
+  store.nodes.find((n) => n.nodeId === props.scene.id && !n.magic && store.nodeIsEntry(n.id))
 )
 const accent = computed(() =>
   entry.value ? store.nodeColorById(entry.value.id) : '#5b8def'
@@ -158,7 +158,7 @@ async function commitName() {
     <BallNode :add-scene-id="scene.id" :pos="addPos" />
 
     <!-- 入/出端口球：节点直接子级，绝对定位基准与连线锚点（ballWorld）一致 -->
-    <BallNode v-for="ball in store.nodes.filter((n) => n.sceneId === scene.id)" :key="ball.id" :node="ball" :pos="nodePos(ball)" />
+    <BallNode v-for="ball in store.nodes.filter((n) => n.nodeId === scene.id)" :key="ball.id" :node="ball" :pos="nodePos(ball)" />
   </div>
 </template>
 

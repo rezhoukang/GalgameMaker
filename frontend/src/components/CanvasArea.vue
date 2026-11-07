@@ -153,11 +153,11 @@ const visibleScenes = computed<Node[]>(() => {
   for (const n of store.nodes) {
     if (n.entry || n.magic) continue
     const pair = store.nodes.find((x) => x.id !== n.id && x.hash === n.hash)
-    if (!pair || pair.sceneId === n.sceneId) continue
-    if (!parentOf.has(pair.sceneId)) parentOf.set(pair.sceneId, n.sceneId)
-    const list = kidsOf.get(n.sceneId)
-    if (list) list.push(pair.sceneId)
-    else kidsOf.set(n.sceneId, [pair.sceneId])
+    if (!pair || pair.nodeId === n.nodeId) continue
+    if (!parentOf.has(pair.nodeId)) parentOf.set(pair.nodeId, n.nodeId)
+    const list = kidsOf.get(n.nodeId)
+    if (list) list.push(pair.nodeId)
+    else kidsOf.set(n.nodeId, [pair.nodeId])
   }
   const visible: Node[] = []
   const seen = new Set<number>()
@@ -182,7 +182,7 @@ const lines = computed<Line[]>(() => {
     if (n.entry || n.magic) continue // 魔法端口：画布不画线（导出生效）
     const pair = store.nodes.find((x) => x.id !== n.id && x.hash === n.hash)
     if (!pair) continue
-    if (!vis.has(n.sceneId) || !vis.has(pair.sceneId)) continue // 折叠隐藏的子树不画线
+    if (!vis.has(n.nodeId) || !vis.has(pair.nodeId)) continue // 折叠隐藏的子树不画线
     const p1 = store.ballWorld(n)
     const p2 = store.ballWorld(pair)
     out.push({

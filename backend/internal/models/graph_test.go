@@ -20,8 +20,8 @@ func TestIncomingValidationWithoutStoredCounts(t *testing.T) {
 				{ID: 2, CanvasID: 1, Hash: "child", Name: "child"},
 			}
 			ports := []Port{
-				{ID: 1, Hash: "ordinary", SceneID: 1, ExportHash: "child", Name: "ordinary", TargetKind: "mp4"},
-				{ID: 2, Hash: "extra", SceneID: 1, ExportHash: tc.target, Name: "extra", TargetKind: "mp4", Magic: tc.magic},
+				{ID: 1, Hash: "ordinary", NodeID: 1, ExportHash: "child", Name: "ordinary", TargetKind: "mp4"},
+				{ID: 2, Hash: "extra", NodeID: 1, ExportHash: tc.target, Name: "extra", TargetKind: "mp4", Magic: tc.magic},
 			}
 			err := ValidateGraph(nodes, ports)
 			if (err != nil) != tc.wantErr {

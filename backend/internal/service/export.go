@@ -113,7 +113,7 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 			result.Files = append(result.Files, name)
 		}
 		for _, p := range ports {
-			if p.SceneID == sc.ID {
+			if p.NodeID == sc.ID {
 				r.Options = append(r.Options, LinkInfo{Label: p.Name, TargetID: byHash[p.ExportHash], TargetKind: p.TargetKind, ShowOption: p.ShowOption})
 			}
 		}

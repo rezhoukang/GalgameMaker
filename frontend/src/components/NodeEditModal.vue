@@ -9,8 +9,8 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
 const store = useCanvasStore()
 const nameRef = ref<HTMLInputElement | null>(null)
-const scene = computed(() => store.sceneById(props.node.sceneId))
-const sceneName = computed(() => stripExt(store.sceneById(props.node.sceneId)?.name || '（未知）'))
+const scene = computed(() => store.sceneById(props.node.nodeId))
+const sceneName = computed(() => stripExt(store.sceneById(props.node.nodeId)?.name || '（未知）'))
 // 配对端口（同一哈希的另一端），出/入通用——配对即相连，方向无所谓
 const pairInfo = computed(() => store.pairInfo(props.node.id))
 // 一对端口配置共同，以出端口（entry=false）为准

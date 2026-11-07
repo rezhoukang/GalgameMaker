@@ -105,7 +105,7 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 			ids = append(ids, sc.ID)
 		}
 		if len(ids) > 0 {
-			if err := tx.Where("scene_id IN ?", ids).Delete(&models.Port{}).Error; err != nil {
+			if err := tx.Where("node_id IN ?", ids).Delete(&models.Port{}).Error; err != nil {
 				return err
 			}
 		}
