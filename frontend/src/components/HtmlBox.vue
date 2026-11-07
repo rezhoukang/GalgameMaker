@@ -156,7 +156,9 @@ async function commitName() {
       @mousedown.stop.prevent
       @click.stop="onToggleFold"
     >
-      <span class="fold-symbol" aria-hidden="true">{{ isFolded ? '→' : '←' }}</span>
+      <svg class="fold-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
+        <path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
     </button>
 
     <!-- 右侧端口容器：加号球 = 当作下一个出端口（与出端口同逻辑），点击新增出端口+下一跳 -->
@@ -289,9 +291,13 @@ async function commitName() {
   border-color: var(--accent);
   color: var(--accent);
 }
-.fold-symbol {
-  font-size: 16px;
-  line-height: 1;
+.fold-chevron {
+  flex: none;
+  transform: rotate(180deg);
+  transition: transform 0.15s;
+}
+.fold-btn.folded .fold-chevron {
+  transform: rotate(0deg);
 }
 /* 右侧端口容器已并入 BallNode（加号球与出端口同逻辑渲染，见 BallNode.add-dot） */
 </style>
