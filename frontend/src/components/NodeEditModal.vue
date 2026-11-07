@@ -3,6 +3,9 @@ import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useCanvasStore } from '@/store/canvas'
 import type { PortItem } from '@/types'
 import AppIcon from './AppIcon.vue'
+import PortRulesEditor from './PortRulesEditor.vue'
+import type { PortRules } from '@/types'
+import { useAppStore } from '@/store/app'
 
 const props = defineProps<{ node: PortItem }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -23,6 +26,8 @@ const targetScene = computed(() => store.scenes.find(sc => sc.hash === primary.v
 
 const name = ref(primary.value.name)
 const isShow = ref(primary.value.isShow)
+const rules = ref<PortRules>({conditionMode: primary.value.conditionMode, resetLoop: primary.value.resetLoop,
+  conditions: primary.value.conditions.map(c => ({...c})), effects: primary.value.effects.map(e => ({...e}))})
 
 watch(
   () => primary.value?.name,
@@ -64,10 +69,15 @@ onMounted(() => {
 })
 
 async function save() {
+  const ids = new Set(store.variables.map(v => v.id))
+  if (rules.value.conditions.some(c => !ids.has(c.variableId) || !Number.isSafeInteger(c.value)) || rules.value.effects.some(e => !ids.has(e.variableId) || !Number.isSafeInteger(e.delta))) {
+    useAppStore().notify('请选择有效变量，并填写整数数值', 'error'); return
+  }
   const p = primary.value
   const ok = await store.saveNode(p.id, {
     name: name.value.trim() || p.name,
-    isShow: isShow.value
+    isShow: isShow.value,
+    rules: rules.value
   })
   if (ok) emit('close')
 }
@@ -85,7 +95,7 @@ async function del() {
           <h3 id="port-dialog-title"><AppIcon name="file" :size="18" /> 端口设置</h3>
           <button class="close-btn" aria-label="关闭端口设置" @click="emit('close')"><AppIcon name="close" :size="16" /></button>
         </div>
-        <p class="hint-line">{{ primary.magic ? '设置选项内容、播放方式和魔法连接目标。' : '设置选项内容和播放方式。' }}</p>
+        <p class="hint-line">{{ primary.magic ? '设置选项、变量规则和魔法连接目标。' : '设置选项、出现条件和变量变化。' }}</p>
       </header>
 
       <div class="dialog-body">
@@ -114,6 +124,8 @@ async function del() {
             </button>
           </div>
         </div>
+
+        <PortRulesEditor v-model="rules" />
 
         <section class="endpoint-card" aria-labelledby="source-node-title">
           <div class="endpoint-heading">

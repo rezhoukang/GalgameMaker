@@ -81,10 +81,11 @@ func (s *TreeService) GetTree() ([]TreeFolder, error) {
 // CanvasView 打开画布时返回的完整视图：HTML 框 + 端口。
 // 连接关系不再有独立连线表：一对「出端口 + 入端口」共用同一哈希，哈希相同即相连。
 type CanvasView struct {
-	ProjectID uint          `json:"projectId"`
-	Scenes    []models.Node `json:"scenes"`
-	Nodes     []models.Port `json:"nodes"`
-	Token     string        `json:"token"`
+	Variables []models.Variable `json:"variables"` // 工程变量定义，参与撤回快照
+	ProjectID uint              `json:"projectId"`
+	Scenes    []models.Node     `json:"scenes"`
+	Nodes     []models.Port     `json:"nodes"`
+	Token     string            `json:"token"`
 }
 
 func (s *TreeService) GetCanvasView(canvasID uint) (*CanvasView, error) {
@@ -336,6 +337,11 @@ func (s *TreeService) collectChildFolders(tx *gorm.DB, acc *[]models.Folder, par
 // ResetAll 初始化：清空数据库、清空存储目录，再创建默认结构。
 func (s *TreeService) ResetAll() error {
 	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		for _, model := range []interface{}{&models.PortCondition{}, &models.PortEffect{}, &models.Variable{}} {
+			if err := tx.Where("1 = 1").Delete(model).Error; err != nil {
+				return err
+			}
+		}
 		if err := tx.Exec("DELETE FROM ports").Error; err != nil {
 			return err
 		}

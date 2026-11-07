@@ -1,6 +1,7 @@
 package service
 
 import (
+	"crypto/sha256"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -35,9 +36,14 @@ type ExportResult struct {
 
 // LinkInfo 一条跳转链接（出端口选项）。
 type LinkInfo struct {
-	Label    string `json:"label"`
-	TargetID uint   `json:"target"`
-	IsShow   bool   `json:"isShow"`
+	ID            uint                   `json:"id"`            // 原出端口 ID，用于路径历史
+	ConditionMode string                 `json:"conditionMode"` // 条件组合方式
+	ResetLoop     bool                   `json:"resetLoop"`     // 开始新一轮
+	Conditions    []models.PortCondition `json:"conditions"`    // 出现条件
+	Effects       []models.PortEffect    `json:"effects"`       // 变量增减
+	Label         string                 `json:"label"`
+	TargetID      uint                   `json:"target"`
+	IsShow        bool                   `json:"isShow"`
 }
 
 // SceneRes 节点导出的资源与选项。
@@ -125,12 +131,22 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 		}
 		for _, p := range ports {
 			if p.NodeID == sc.ID {
-				r.Options = append(r.Options, LinkInfo{Label: p.Name, TargetID: byHash[p.ExportHash], IsShow: p.IsShow})
+				r.Options = append(r.Options, LinkInfo{ID: p.ID, Label: p.Name, TargetID: byHash[p.ExportHash], IsShow: p.IsShow, ConditionMode: p.ConditionMode, ResetLoop: p.ResetLoop, Conditions: p.Conditions, Effects: p.Effects})
 			}
 		}
 		res[sc.ID] = r
 	}
-	if err := s.writePlayerIndex(outDir, firstID, res); err != nil {
+	vars, err := projectVariables(s.db, canvasID)
+	if err != nil {
+		return nil, err
+	}
+	projectKey := ""
+	for _, sc := range scenes {
+		if sc.Level == 1 {
+			projectKey = sc.Hash
+		}
+	}
+	if err := s.writePlayerIndex(outDir, firstID, res, vars, projectKey); err != nil {
 		return nil, err
 	}
 	result.Files = append(result.Files, "index.html")
@@ -141,12 +157,31 @@ func (s *ExportService) Export(canvasID uint) (*ExportResult, error) {
 //go:embed templates/player.html
 var playerTemplate string
 
-func (s *ExportService) writePlayerIndex(outDir string, firstID uint, res map[uint]*SceneRes) error {
+//go:embed templates/story-runtime.js
+var storyRuntime string
+
+func (s *ExportService) writePlayerIndex(outDir string, firstID uint, res map[uint]*SceneRes, vars []models.Variable, projectKey string) error {
 	data, err := json.Marshal(res)
 	if err != nil {
 		return err
 	}
-	page := strings.NewReplacer("__STORY_DATA__", string(data), "__FIRST_NODE__", fmt.Sprint(firstID)).Replace(playerTemplate)
+	definition, err := json.Marshal(struct {
+		Nodes     map[uint]*SceneRes
+		Variables []models.Variable
+		First     uint
+	}{res, vars, firstID})
+	if err != nil {
+		return err
+	}
+	metadata, err := json.Marshal(struct {
+		Variables  []models.Variable `json:"variables"`
+		ProjectKey string            `json:"projectKey"`
+		Revision   string            `json:"revision"`
+	}{vars, projectKey, fmt.Sprintf("%x", sha256.Sum256(definition))})
+	if err != nil {
+		return err
+	}
+	page := strings.NewReplacer("__STORY_DATA__", string(data), "__STORY_META__", string(metadata), "__STORY_RUNTIME__", storyRuntime, "__FIRST_NODE__", fmt.Sprint(firstID)).Replace(playerTemplate)
 	return os.WriteFile(filepath.Join(outDir, "index.html"), []byte(page), 0644)
 }
 

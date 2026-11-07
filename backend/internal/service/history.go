@@ -49,7 +49,11 @@ func readView(db *gorm.DB, canvasID uint) (*CanvasView, error) {
 	if err != nil {
 		return nil, err
 	}
-	v := &CanvasView{ProjectID: canvasID, Scenes: ss, Nodes: pp}
+	vars, err := projectVariables(db, canvasID)
+	if err != nil {
+		return nil, err
+	}
+	v := &CanvasView{ProjectID: canvasID, Scenes: ss, Nodes: pp, Variables: vars}
 	v.Token, err = signView(db, *v)
 	return v, err
 }
@@ -100,6 +104,24 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 		if err := models.ValidateGraph(want.Scenes, want.Nodes); err != nil {
 			return err
 		}
+		if err := validateStoryRules(want.Variables, want.Nodes, canvasID); err != nil {
+			return err
+		}
+		portIDs := []uint{}
+		for _, p := range current.Nodes {
+			portIDs = append(portIDs, p.ID)
+		}
+		if err := deletePortRules(tx, portIDs); err != nil {
+			return err
+		}
+		if err := tx.Where("project_id = ?", canvasID).Delete(&models.Variable{}).Error; err != nil {
+			return err
+		}
+		for _, v := range want.Variables {
+			if err := tx.Create(&v).Error; err != nil {
+				return err
+			}
+		}
 		ids := []uint{}
 		for _, sc := range current.Scenes {
 			ids = append(ids, sc.ID)
@@ -120,6 +142,22 @@ func (s *NodeService) Restore(canvasID uint, expected string, want CanvasView) (
 			show := p.IsShow
 			if err := tx.Create(&p).Error; err != nil {
 				return err
+			}
+			for _, c := range p.Conditions {
+				if c.PortID != p.ID {
+					return errors.New("历史端口条件无效")
+				}
+				if err := tx.Create(&c).Error; err != nil {
+					return err
+				}
+			}
+			for _, e := range p.Effects {
+				if e.PortID != p.ID {
+					return errors.New("历史端口效果无效")
+				}
+				if err := tx.Create(&e).Error; err != nil {
+					return err
+				}
 			}
 			if !show {
 				if err := tx.Model(&p).Update("is_show", false).Error; err != nil {

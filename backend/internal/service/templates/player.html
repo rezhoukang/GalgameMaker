@@ -25,11 +25,13 @@ body{background:#000;font-family:'Microsoft YaHei',sans-serif;overflow:hidden}
 #start-wrap h1{color:#fff;font-size:40px;letter-spacing:2px}
 #start-wrap .sub{color:#777;font-size:14px}
 #start{display:inline-block;padding:16px 64px;background:#d97706;color:#fff;font-size:20px;font-weight:700;border:none;border-radius:14px;box-shadow:0 8px 30px rgba(217,119,6,.4);cursor:pointer;transition:.15s}
+#continue{padding:12px 42px;border:1px solid #888;border-radius:12px;background:transparent;color:white;font-size:18px;cursor:pointer}
+#save-notice{position:fixed;bottom:12px;left:12px;right:12px;color:#fff;background:rgba(0,0,0,.8);padding:10px;z-index:30;font-size:13px;display:none}
 #start:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(217,119,6,.5)}
 </style>
 </head>
 <body>
-<div id="start-wrap"><h1>Galgame 互动视频</h1><p class="sub">点击开始</p><button id="start">▶ 开始</button></div>
+<div id="start-wrap"><h1>Galgame 互动视频</h1><p class="sub" id="start-message">点击开始</p><button id="continue" style="display:none">继续游戏</button><button id="start">▶ 新游戏</button></div>
 <div id="stage"></div>
 <div id="bar">
 <button id="mute" type="button" title="静音/取消静音">🔊</button>
@@ -39,14 +41,34 @@ body{background:#000;font-family:'Microsoft YaHei',sans-serif;overflow:hidden}
 <div id="opts"></div>
 <button id="next" type="button">继续 ▸</button>
 <div id="playback-error"><div id="playback-error-text"></div></div>
+<div id="save-notice" role="status"></div>
+<script type="application/json" id="story-meta">__STORY_META__</script>
 <script type="application/json" id="story-data">__STORY_DATA__</script>
 <script>
+__STORY_RUNTIME__
+var META = JSON.parse(document.getElementById('story-meta').textContent);
 var DATA = JSON.parse(document.getElementById('story-data').textContent);
 var FIRST = __FIRST_NODE__;
+var runtime = createStoryRuntime(DATA, META.variables, FIRST);
+var state = runtime.initial(), saved = null, visit = 0, transitioning = false;
+var saveKey = 'galgame-play-v1-' + META.projectKey;
+var notice = document.getElementById('save-notice');
+function report(text){ notice.textContent=text; notice.style.display='block'; }
+function persist(){
+  try { localStorage.setItem(saveKey,JSON.stringify({revision:META.revision,state:state})); }
+  catch (_){ report('无法保存进度：浏览器存储不可用或空间不足。本次仍可继续游玩。'); }
+}
+try {
+  var raw = localStorage.getItem(saveKey);
+  if(raw){
+    var record = JSON.parse(raw);
+    if(record.revision === META.revision && runtime.validState(record.state)) saved = record.state;
+    else document.getElementById('start-message').textContent='旧存档与当前剧情不兼容或已损坏，请开始新游戏。';
+  }
+} catch (_){ document.getElementById('start-message').textContent='无法读取本地存档，可以开始新游戏。'; }
+if(saved) document.getElementById('continue').style.display='block';
 var cur = null, page = null, started = false, completed = false;
 var volume = 1, muted = false;
-var byHash = {};
-Object.keys(DATA).forEach(function(id){ byHash[DATA[id].hash] = id; });
 var stage = document.getElementById('stage');
 var optsBox = document.getElementById('opts');
 var nextBtn = document.getElementById('next');
@@ -55,13 +77,20 @@ var playbackErrorText = document.getElementById('playback-error-text');
 var restartBtn = document.getElementById('restart');
 var muteBtn = document.getElementById('mute');
 var volBar = document.getElementById('vol');
-function route(){ return byHash[location.hash.replace(/^#\/node\//, '')] || FIRST; }
-function navigate(id){
-  var sc = DATA[String(id)]; if(!sc){ return; }
-  history.pushState(null, '', '#/node/' + sc.hash);
-  show(id);
+function syncRoute(){
+  try { history.replaceState(null, '', '#/node/' + DATA[String(state.currentNode)].hash); } catch (_) {}
 }
-window.addEventListener('hashchange', function(){ if(started){ show(route()); } });
+// 浏览器前进后退或手改地址不推进剧情，也不重放变量效果。
+window.addEventListener('hashchange', function(){ if(started) syncRoute(); });
+window.addEventListener('popstate', function(){ if(started) syncRoute(); });
+function choose(port, expectedVisit){
+  if(!started || !completed || transitioning || expectedVisit !== visit) return;
+  transitioning = true;
+  try {
+    var nextState = runtime.transition(state,port.id);
+    state = nextState; persist(); syncRoute(); show(state.currentNode);
+  } catch (err) { transitioning = false; report(err.message || '无法跳转'); }
+}
 function syncBar(){
   muteBtn.textContent = muted ? '🔇' : '🔊';
   volBar.value = Math.round(volume * 100);
@@ -75,7 +104,7 @@ document.addEventListener('keydown', function(e){
 });
 function show(id){
   var sc = DATA[String(id)]; if(!sc){ return; }
-  cur = id; completed = false;
+  cur = id; completed = false; transitioning = false; visit++;
   optsBox.replaceChildren(); optsBox.style.display = 'none';
   nextBtn.style.display = 'none'; playbackError.style.display = 'none';
   restartBtn.style.display = 'block';
@@ -105,24 +134,31 @@ function afterContent(){
   if(completed){ return; }
   completed = true; nextBtn.style.display = 'none';
   var sc = DATA[String(cur)]; if(!sc){ return; }
-  if(sc.options.length === 1 && !sc.options[0].isShow){ navigate(sc.options[0].target); return; }
-  var visibleOptions = sc.options.filter(function(o){ return o.isShow; });
+  var currentVisit = visit;
+  if(sc.options.length === 1 && !sc.options[0].isShow && runtime.eligible(sc.options[0],state.values)){ choose(sc.options[0],currentVisit); return; }
+  var visibleOptions = sc.options.filter(function(o){ return o.isShow && runtime.eligible(o,state.values); });
   optsBox.replaceChildren(); optsBox.style.display = 'none';
   if(visibleOptions.length){
     visibleOptions.forEach(function(o){
       var btn = document.createElement('button'); btn.className = 'opt'; btn.textContent = o.label;
-      btn.onclick = function(){ navigate(o.target); }; optsBox.appendChild(btn);
+      btn.onclick = function(){ choose(o,currentVisit); }; optsBox.appendChild(btn);
     });
     optsBox.style.display = 'flex';
   }
   // Terminal nodes keep their HTML or final video frame visible.
 }
 nextBtn.addEventListener('click', afterContent);
-restartBtn.addEventListener('click', function(){ navigate(FIRST); });
+function begin(nextState){
+  state = nextState; started = true;
+  document.getElementById('start-wrap').style.display = 'none';
+  persist(); syncRoute(); show(state.currentNode);
+}
+restartBtn.addEventListener('click', function(){ if(confirm('重新开始会清空当前游玩进度，确定吗？')) begin(runtime.initial()); });
 document.getElementById('start').addEventListener('click', function(){
-  document.getElementById('start-wrap').style.display = 'none'; started = true;
-  var id = route(); history.replaceState(null, '', '#/node/' + DATA[String(id)].hash); show(id);
+  if(saved && !confirm('开始新游戏将覆盖已有进度，确定吗？')) return;
+  begin(runtime.initial());
 });
+document.getElementById('continue').addEventListener('click', function(){ if(saved) begin(saved); });
 </script>
 </body>
 </html>

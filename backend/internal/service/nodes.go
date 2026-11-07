@@ -40,6 +40,9 @@ func graph(tx *gorm.DB, canvasID uint) ([]models.Node, []models.Port, error) {
 			return nil, nil, err
 		}
 	}
+	if err := loadPortRules(tx, pp); err != nil {
+		return nil, nil, err
+	}
 	return ss, pp, nil
 }
 func normalize(tx *gorm.DB, canvasID uint) error {
@@ -158,6 +161,13 @@ func (s *NodeService) DeleteScene(id uint) error {
 				hashes = append(hashes, n.Hash)
 			}
 		}
+		var removedPorts []uint
+		if err := tx.Model(&models.Port{}).Where("node_id IN ? OR export_hash IN ?", ids, hashes).Pluck("id", &removedPorts).Error; err != nil {
+			return err
+		}
+		if err := deletePortRules(tx, removedPorts); err != nil {
+			return err
+		}
 		if err := tx.Where("node_id IN ? OR export_hash IN ?", ids, hashes).Delete(&models.Port{}).Error; err != nil {
 			return err
 		}
@@ -174,7 +184,7 @@ func (s *NodeService) DeleteScene(id uint) error {
 		return normalize(tx, sc.ProjectID)
 	})
 }
-func (s *NodeService) UpdateNode(id uint, name string, isShow *bool) (*models.Port, error) {
+func (s *NodeService) UpdateNode(id uint, name string, isShow *bool, rules ...PortRules) (*models.Port, error) {
 	var p models.Port
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if err := activePorts(tx).First(&p, id).Error; err != nil {
@@ -188,6 +198,11 @@ func (s *NodeService) UpdateNode(id uint, name string, isShow *bool) (*models.Po
 		}
 		if isShow != nil {
 			p.IsShow = *isShow
+		}
+		if len(rules) > 0 {
+			if err := savePortRules(tx, &p, rules[0]); err != nil {
+				return err
+			}
 		}
 		return tx.Save(&p).Error
 	})
@@ -218,6 +233,9 @@ func (s *NodeService) BreakConnection(id uint) error {
 		}
 		var sc models.Node
 		if err := activeScenes(tx).First(&sc, p.NodeID).Error; err != nil {
+			return err
+		}
+		if err := deletePortRules(tx, []uint{p.ID}); err != nil {
 			return err
 		}
 		if err := tx.Delete(&p).Error; err != nil {

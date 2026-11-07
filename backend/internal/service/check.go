@@ -33,6 +33,13 @@ func (s *NodeService) CheckCanvas(canvasID uint) ([]CanvasIssue, error) {
 		add(c.Name, "结构", err.Error())
 		return issues, nil
 	}
+	vars, err := projectVariables(s.db, canvasID)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateStoryRules(vars, pp, canvasID); err != nil {
+		add(c.Name, "变量规则", err.Error())
+	}
 	first := 0
 	for _, sc := range ss {
 		if sc.IsFirst {

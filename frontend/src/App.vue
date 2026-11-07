@@ -7,6 +7,7 @@ import SettingsModal from './components/SettingsModal.vue'
 import NodeEditModal from './components/NodeEditModal.vue'
 import HtmlBoxEditModal from './components/HtmlBoxEditModal.vue'
 import NameInputModal from './components/NameInputModal.vue'
+import VariablesModal from './components/VariablesModal.vue'
 import { useAppStore } from '@/store/app'
 import { useTreeStore } from '@/store/tree'
 import { useCanvasStore } from '@/store/canvas'
@@ -47,6 +48,9 @@ function onBackgroundClick() {
       :node-id="canvas.editingScene"
       @close="canvas.editingScene = null"
     />
+
+    <!-- 工程变量 -->
+    <VariablesModal v-if="canvas.variablesOpen" @close="canvas.variablesOpen = false" />
 
     <!-- 新建弹窗 -->
     <NameInputModal

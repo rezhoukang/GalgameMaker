@@ -10,7 +10,8 @@ function play(options) {
   const buttons = []
   const targets = []
   const context = {
-    completed: false, cur: 1, DATA: { 1: { options } },
+    completed: false, cur: 1, visit: 1, state: {values: {}},
+    runtime: {eligible: port => port.allowed !== false}, DATA: { 1: { options } },
     nextBtn: { style: { display: 'block' } },
     optsBox: {
       style: { display: 'flex' },
@@ -18,7 +19,7 @@ function play(options) {
       appendChild(button) { buttons.push(button) }
     },
     document: { createElement() { return {} } },
-    navigate(target) { targets.push(target) }
+    choose(port) { targets.push(port.target) }
   }
   runInNewContext(afterContent + '\nafterContent();', context)
   return { buttons, targets, context }
@@ -55,4 +56,12 @@ test('a visible single exit remains a choice; terminal nodes have none', () => {
   const terminal = play([])
   assert.equal(terminal.buttons.length, 0)
   assert.deepEqual(terminal.targets, [])
+})
+
+test('failed conditions hide visible options and block single hidden automatic exits', () => {
+  assert.equal(play([{target: 2, isShow: true, allowed: false}]).buttons.length, 0)
+  assert.deepEqual(play([{target: 2, isShow: false, allowed: false}]).targets, [])
+  const multiple = play([{target: 2, isShow: false}, {target: 3, isShow: true, allowed: false}])
+  assert.deepEqual(multiple.targets, [])
+  assert.equal(multiple.buttons.length, 0)
 })

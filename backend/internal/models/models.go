@@ -49,17 +49,21 @@ type Node struct {
 
 // Port 出端口，对应 ports 表；入端口仅由前端派生，不单独保存。
 type Port struct {
-	ID         uint      `gorm:"primaryKey;comment:出端口自增主键；前端派生的入端口使用对应负 ID" json:"id"`                                        // 出端口自增主键；前端派生的入端口使用对应负 ID
-	Hash       string    `gorm:"size:32;uniqueIndex;not null;comment:出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步" json:"hash"`             // 出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步
-	Name       string    `gorm:"column:option_content;not null;default:'选项';comment:选项显示文案，数据库列名为 option_content" json:"name"` // 选项显示文案，数据库列名为 option_content
-	NodeID     uint      `gorm:"not null;index;comment:所属源节点 ID，关联 nodes.id" json:"nodeId"`                                    // 所属源节点 ID，关联 nodes.id
-	Entry      bool      `gorm:"-" json:"entry"`                                                                               // 仅供 API 和前端区分方向，不入库；后端出端口为 false，前端派生入端口为 true
-	Magic      bool      `gorm:"not null;default:false;comment:是否为魔法出端口；true 不画连接线，也不参与普通树层级和子树归属" json:"magic"`               // 是否为魔法出端口；true 不画连接线，也不参与普通树层级和子树归属
-	CreatedAt  time.Time `gorm:"comment:端口创建时间，由 GORM 自动填写" json:"createdAt"`                                                  // 端口创建时间，由 GORM 自动填写
-	UpdatedAt  time.Time `gorm:"comment:端口最后更新时间，由 GORM 在更新记录时维护" json:"updatedAt"`                                            // 端口最后更新时间，由 GORM 在更新记录时维护
-	ExportHash string    `gorm:"not null;index;comment:目标剧情节点的 hash，关联 nodes.hash；目标必须属于同一工程" json:"exportHash"`               // 目标剧情节点的 hash，关联 nodes.hash；目标必须属于同一工程
-	IsShow     bool      `gorm:"not null;default:true;comment:是否显示选项；false 隐藏选项；单出口时自动跳转，多出口时不展示此项" json:"isShow"`             // 是否显示选项；false 隐藏选项；单出口时自动跳转，多出口时不展示此项
-	SortOrder  int       `gorm:"not null;default:0;comment:源节点内的出端口排序值，升序排列，相同值按端口 ID 排序" json:"sortOrder"`                    // 源节点内的出端口排序值，升序排列，相同值按端口 ID 排序
+	ConditionMode string          `gorm:"not null;default:all;comment:all 全部条件满足或 any 任一满足" json:"conditionMode"`                       // 条件组合方式
+	ResetLoop     bool            `gorm:"not null;default:false;comment:经过时先重置本轮变量再执行效果" json:"resetLoop"`                              // 是否开始新一轮
+	Conditions    []PortCondition `gorm:"-" json:"conditions"`                                                                          // 从 port_conditions 读取的条件列表
+	Effects       []PortEffect    `gorm:"-" json:"effects"`                                                                             // 从 port_effects 读取的效果列表
+	ID            uint            `gorm:"primaryKey;comment:出端口自增主键；前端派生的入端口使用对应负 ID" json:"id"`                                        // 出端口自增主键；前端派生的入端口使用对应负 ID
+	Hash          string          `gorm:"size:32;uniqueIndex;not null;comment:出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步" json:"hash"`             // 出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步
+	Name          string          `gorm:"column:option_content;not null;default:'选项';comment:选项显示文案，数据库列名为 option_content" json:"name"` // 选项显示文案，数据库列名为 option_content
+	NodeID        uint            `gorm:"not null;index;comment:所属源节点 ID，关联 nodes.id" json:"nodeId"`                                    // 所属源节点 ID，关联 nodes.id
+	Entry         bool            `gorm:"-" json:"entry"`                                                                               // 仅供 API 和前端区分方向，不入库；后端出端口为 false，前端派生入端口为 true
+	Magic         bool            `gorm:"not null;default:false;comment:是否为魔法出端口；true 不画连接线，也不参与普通树层级和子树归属" json:"magic"`               // 是否为魔法出端口；true 不画连接线，也不参与普通树层级和子树归属
+	CreatedAt     time.Time       `gorm:"comment:端口创建时间，由 GORM 自动填写" json:"createdAt"`                                                  // 端口创建时间，由 GORM 自动填写
+	UpdatedAt     time.Time       `gorm:"comment:端口最后更新时间，由 GORM 在更新记录时维护" json:"updatedAt"`                                            // 端口最后更新时间，由 GORM 在更新记录时维护
+	ExportHash    string          `gorm:"not null;index;comment:目标剧情节点的 hash，关联 nodes.hash；目标必须属于同一工程" json:"exportHash"`               // 目标剧情节点的 hash，关联 nodes.hash；目标必须属于同一工程
+	IsShow        bool            `gorm:"not null;default:true;comment:是否显示选项；false 隐藏选项；单出口时自动跳转，多出口时不展示此项" json:"isShow"`             // 是否显示选项；false 隐藏选项；单出口时自动跳转，多出口时不展示此项
+	SortOrder     int             `gorm:"not null;default:0;comment:源节点内的出端口排序值，升序排列，相同值按端口 ID 排序" json:"sortOrder"`                    // 源节点内的出端口排序值，升序排列，相同值按端口 ID 排序
 }
 
 // TableName 指定出端口表名。

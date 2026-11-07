@@ -4,6 +4,7 @@ import { api } from '@/api/client'
 import { useAppStore } from './app'
 import { useTreeStore } from './tree'
 import type { Node, PortItem, CanvasView } from '@/types'
+import type { StoryVariable, PortRules } from '@/types'
 import {
   MAGIC_COLOR,
   MIND_COLORS,
@@ -70,6 +71,7 @@ export const useCanvasStore = defineStore('canvas', {
     nodes: [] as PortItem[],
     selectedSceneId: null as number | null,
     selectedSceneIds: [] as number[],
+    variablesOpen: false,
     view: { x: 0, y: 0, zoom: 1 } as ViewState,
     interaction: null as Interaction,
     editingNode: null as PortItem | null,
@@ -80,6 +82,7 @@ export const useCanvasStore = defineStore('canvas', {
   }),
 
   getters: {
+    variables: (s) => s.snapshot?.variables ?? [],
     treeVisibility: (s) => treeVisibility(s.scenes, s.nodes, s.collapsedSceneIds, s.compactSceneIds),
     canUndo: (s) => !s.busy && s.past.length > 0,
     canRedo: (s) => !s.busy && s.future.length > 0,
@@ -167,6 +170,7 @@ export const useCanvasStore = defineStore('canvas', {
 
   actions: {
     clear() {
+      this.variablesOpen = false
       this.saveCache()
       this.canvasId = null; this.canvasName = ''; this.scenes = []; this.nodes = []
       this.snapshot = null; this.past = []; this.future = []
@@ -204,6 +208,7 @@ export const useCanvasStore = defineStore('canvas', {
     },
 
     async openCanvas(id: number, name: string) {
+      this.variablesOpen = false
       if (this.busy) return
       this.busy = true
       this.saveCache()
@@ -356,7 +361,11 @@ export const useCanvasStore = defineStore('canvas', {
     },
 
     renameNode(id: number, name: string) { return this.edit(() => api.updateNode(Math.abs(id), {name}), '已保存') },
-    async saveNode(id: number, data: {name: string; isShow?: boolean}) {
+    saveVariables(variables: StoryVariable[]) {
+      if (this.canvasId == null) return Promise.resolve(false)
+      return this.edit(() => api.saveVariables(this.canvasId!, variables), '已保存剧情变量')
+    },
+    async saveNode(id: number, data: {name: string; isShow?: boolean; rules?: PortRules}) {
       const ok = await this.edit(() => api.updateNode(Math.abs(id), data), '已保存')
       if (ok) this.editingNode = null
       return ok

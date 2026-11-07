@@ -70,6 +70,7 @@ async function onExport() {
       </span>
     </div>
     <div class="spacer" />
+    <button class="btn" :disabled="!canvas.isCanvasView || canvas.busy" @click="canvas.variablesOpen = true">剧情变量</button>
     <div class="shortcut-help">
       <button type="button" class="icon-btn help-btn" aria-label="快捷键帮助" aria-describedby="shortcut-guide">?</button>
       <div id="shortcut-guide" class="shortcut-guide" role="tooltip">

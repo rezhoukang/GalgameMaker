@@ -9,6 +9,7 @@ import type {
   ExportResult,
   ItemKind
 } from '@/types'
+import type { StoryVariable, PortRules } from '@/types'
 
 export class ApiError extends Error {
   code: number
@@ -64,6 +65,7 @@ export const api = {
 
   // 画布视图
   getCanvas: (id: number) => request<CanvasView>(`/api/canvas/${id}`),
+  saveVariables: (id: number, variables: StoryVariable[]) => request<void>(`/api/canvas/${id}/variables`, { method: 'PUT', body: JSON.stringify({variables}) }),
   // 画布检测：空端口 / 双角色端口 / 跳转资源缺失
   checkCanvas: (id: number) =>
     request<{ sceneName: string; nodeName: string; problem: string }[]>(`/api/canvas/${id}/check`),
@@ -101,7 +103,7 @@ export const api = {
   // 出端口，入端口只是前端展示
   updateNode: (
     id: number,
-    data: { name?: string; isShow?: boolean }
+    data: { name?: string; isShow?: boolean; rules?: PortRules }
   ) => request<PortItem>(`/api/nodes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteNode: (id: number) => request<void>(`/api/nodes/${id}`, { method: 'DELETE' }),
   // 断开魔法连接；普通连接需移动或删除分支

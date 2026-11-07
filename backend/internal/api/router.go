@@ -57,6 +57,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 
 		// 画布视图（HTML 框 + 节点 + 连线）
 		api.GET("/canvas/:id", h.getCanvas)
+		api.PUT("/canvas/:id/variables", h.saveVariables)
 		api.GET("/canvas/:id/check", h.checkCanvas)
 		api.PUT("/canvas/:id/restore", h.restoreCanvas)
 		api.POST("/scenes/:id/copy-properties", h.copyProperties)

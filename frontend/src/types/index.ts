@@ -47,6 +47,10 @@ export interface Node extends NodeData {
 // 端口视图：后端保存出端口，前端派生入端口。
 // 后端仅返回出端口；前端按 exportHash 生成负 ID 的入端口。
 export interface PortItem {
+  conditionMode: 'all' | 'any' // 条件组合方式
+  resetLoop: boolean // 经过时先重置本轮变量，再执行增减
+  conditions: PortCondition[] // 端口出现条件
+  effects: PortEffect[] // 经过端口的变量变化
   exportHash: string // 目标剧情节点 hash，对应 nodes.hash
   isShow: boolean // 是否显示选项；单出口隐藏时自动跳转，多出口隐藏时不展示此项
   sortOrder: number // 源节点内的出端口排序值，后端按此值及 ID 升序返回
@@ -60,6 +64,7 @@ export interface PortItem {
 
 // 画布完整视图
 export interface CanvasView {
+  variables: StoryVariable[] // 工程变量定义，参与撤回
   projectId: number // 当前工程 ID
   token: string // 后端生成的快照签名，用于校验撤回内容和拒绝过期覆盖
   scenes: NodeData[] // 剧情节点列表，对应 nodes 表
@@ -74,3 +79,26 @@ export interface ExportResult {
 }
 
 export type ItemKind = 'folder' | 'canvas'
+
+export interface StoryVariable {
+  id: number // 变量 ID，新增草稿使用 0
+  projectId: number // 所属工程
+  name: string // 工程内唯一名称
+  initialValue: number // 新游戏初始整数值
+  resetOnLoop: boolean // 开始新一轮是否恢复初始值
+}
+export interface PortCondition {
+  variableId: number // 检查的变量
+  operator: '>=' | '<=' | '==' | '!=' | '>' | '<' // 比较运算
+  value: number // 比较阈值
+}
+export interface PortEffect {
+  variableId: number // 修改的变量
+  delta: number // 正数增加，负数减少
+}
+export interface PortRules {
+  conditionMode: 'all' | 'any' // 多条条件的组合方式
+  resetLoop: boolean // 开始新一轮
+  conditions: PortCondition[] // 无条件表示默认允许
+  effects: PortEffect[] // 同一变量最多一条变化
+}
