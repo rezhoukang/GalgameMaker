@@ -76,7 +76,7 @@ function onClick() {
     :aria-label="isAdd ? '新增分支' : (node?.entry ? '入端口：' : '出端口：') + node?.name"
     :class="[side, { add: isAdd }]"
     :style="{ left: pos.left + 'px', top: pos.top + 'px' }"
-    :title="isAdd ? '左键：新增出端口 + 下一跳节点 · 右键：新增魔法端口' : '点击编辑端口（选项 / 连接 / 播放类型）'"
+    :title="isAdd ? '左键：新增出端口 + 下一跳节点 · 右键：新增魔法端口' : '点击编辑端口（选项 / 连接）'"
     @mousedown.stop.prevent
     @click.stop="onClick"
     @keydown.enter.stop.prevent="onClick"

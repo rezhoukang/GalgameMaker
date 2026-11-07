@@ -34,9 +34,6 @@ func ValidateGraph(scenes []Node, ports []Port) error {
 		if p.ID == 0 || p.Hash == "" || ids[p.ID] || hashes[p.Hash] || p.Name == "" {
 			return fmt.Errorf("端口标识或文案无效")
 		}
-		if p.TargetKind != "mp4" && p.TargetKind != "html" {
-			return fmt.Errorf("端口内容类型无效")
-		}
 		ids[p.ID], hashes[p.Hash] = true, true
 		if p.Magic {
 			continue

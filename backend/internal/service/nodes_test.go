@@ -135,11 +135,11 @@ func TestHiddenPortRestoreAndSnapshotGuards(t *testing.T) {
 	f := setup(t)
 	_, p := f.child(t, f.root.ID)
 	hidden := false
-	if _, err := f.nodes.UpdateNode(p.ID, "", nil, &hidden); err != nil {
+	if _, err := f.nodes.UpdateNode(p.ID, "", &hidden); err != nil {
 		t.Fatal(err)
 	}
 	before := f.view(t)
-	if _, err := f.nodes.UpdateNode(p.ID, "changed", nil, nil); err != nil {
+	if _, err := f.nodes.UpdateNode(p.ID, "changed", nil); err != nil {
 		t.Fatal(err)
 	}
 	after := f.view(t)
@@ -149,7 +149,7 @@ func TestHiddenPortRestoreAndSnapshotGuards(t *testing.T) {
 	encoded, _ := json.Marshal(before)
 	var tampered CanvasView
 	json.Unmarshal(encoded, &tampered)
-	tampered.Scenes[0].AssetDir = "../../outside"
+	tampered.Scenes[0].HTMLPath = "../../outside"
 	if _, err := f.nodes.Restore(f.canvas.ID, after.Token, tampered); err == nil {
 		t.Fatal("tampered snapshot accepted")
 	}
@@ -172,7 +172,7 @@ func TestContentVersionsAndCopy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if old.Video == newer.Video {
+	if old.HTMLPath == newer.HTMLPath {
 		t.Fatal("upload overwrote old content")
 	}
 	if err := f.nodes.CopyProperties(target.ID, f.root.ID, *copied); err != nil {
@@ -180,13 +180,13 @@ func TestContentVersionsAndCopy(t *testing.T) {
 	}
 	var dst models.Node
 	f.db.First(&dst, target.ID)
-	if dst.Video != old.Video || dst.Hash != target.Hash || dst.Level == 1 {
+	if dst.HTMLPath != old.HTMLPath || dst.Hash != target.Hash || dst.Level == 1 {
 		t.Fatal("paste did not use captured properties or overwrote identity")
 	}
 	if err := f.nodes.DeleteScene(target.ID); err != nil {
 		t.Fatal(err)
 	}
-	bytes, err := os.ReadFile(filepath.Join(assetDir(*f.canvas, *old), old.Video))
+	bytes, err := os.ReadFile(filepath.Join(filepath.Dir(htmlPath(*f.canvas, *old)), "video.mp4"))
 	if err != nil || string(bytes) != "old video" {
 		t.Fatal("undo resources were destroyed")
 	}
@@ -196,7 +196,7 @@ func TestContentVersionsAndCopy(t *testing.T) {
 	}
 	var root models.Node
 	f.db.First(&root, f.root.ID)
-	if root.Video != old.Video {
+	if root.HTMLPath != old.HTMLPath {
 		t.Fatal("undo failed to restore video")
 	}
 }
@@ -235,9 +235,8 @@ func TestExportValidationAndRoutes(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	kind := "html"
 	hidden := false
-	if _, err := f.nodes.UpdateNode(p.ID, "", &kind, &hidden); err != nil {
+	if _, err := f.nodes.UpdateNode(p.ID, "", &hidden); err != nil {
 		t.Fatal(err)
 	}
 	exporter := NewExportService(f.db, NewSettingsService(f.db, f.cfg))
@@ -253,7 +252,7 @@ func TestExportValidationAndRoutes(t *testing.T) {
 		t.Fatal("routes or hidden option absent")
 	}
 	_, q := f.child(t, f.root.ID)
-	if _, err := f.nodes.UpdateNode(q.ID, "", &kind, nil); err != nil {
+	if _, err := f.nodes.UpdateNode(q.ID, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	issues, err = f.nodes.CheckCanvas(f.canvas.ID)
@@ -297,7 +296,7 @@ func TestFolderRenameKeepsNestedResources(t *testing.T) {
 	f.db.First(&moved, folder.ID)
 	var movedCanvas models.Canvas
 	f.db.First(&movedCanvas, canvas.ID)
-	if !strings.Contains(moved.Path, "renamed") || !hasFile(filepath.Join(assetDir(movedCanvas, *root), root.Video)) {
+	if !strings.Contains(moved.Path, "renamed") || !hasFile(filepath.Join(filepath.Dir(htmlPath(movedCanvas, *root)), "video.mp4")) {
 		t.Fatal("nested paths not updated")
 	}
 	if _, err := f.tree.CreateFolder(&parentID, "nested"); err == nil {

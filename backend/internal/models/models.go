@@ -37,18 +37,16 @@ type Canvas struct {
 
 // Node 剧情节点，对应 nodes 表，可关联视频或 HTML 内容。
 type Node struct {
-	ID        uint      `gorm:"primaryKey;comment:剧情节点自增主键" json:"id"`                                                                   // 剧情节点自增主键
-	CanvasID  uint      `gorm:"comment:所属工程 ID，关联 canvas.id，由业务代码校验" json:"canvasId"`                                                    // 所属工程 ID，关联 canvas.id，由业务代码校验
-	Hash      string    `gorm:"uniqueIndex;size:16;not null;comment:节点的全局唯一标识，供端口跳转、哈希定位及导出路由使用" json:"hash"`                            // 节点的全局唯一标识，供端口跳转、哈希定位及导出路由使用
-	Name      string    `gorm:"not null;default:'未命名';comment:节点显示名称，与素材目录名称独立" json:"name"`                                             // 节点显示名称，与素材目录名称独立
-	X         float64   `gorm:"comment:节点横坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置" json:"x"`                                                        // 节点横坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置
-	Y         float64   `gorm:"comment:节点纵坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置" json:"y"`                                                        // 节点纵坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置
-	Video     string    `gorm:"not null;default:'';comment:视频相对 asset_dir 的路径，例如 .versions/xxx.mp4；空串表示未指定，检查时会扫描目录中的 mp4" json:"video"` // 视频相对 asset_dir 的路径，例如 .versions/xxx.mp4；空串表示未指定，检查时会扫描目录中的 mp4
-	IsFirst   bool      `gorm:"comment:是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同" json:"first"`                                                   // 是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同
-	CreatedAt time.Time `gorm:"comment:节点创建时间，由 GORM 自动填写" json:"createdAt"`                                                             // 节点创建时间，由 GORM 自动填写
-	Level     int       `gorm:"not null;default:1;comment:普通连接树中的层级，每个工程恰好一个层级为 1 的根节点且不可删除；结构变化时重新计算" json:"level"`                     // 普通连接树中的层级，每个工程恰好一个层级为 1 的根节点且不可删除；结构变化时重新计算
-	AssetDir  string    `gorm:"not null;default:'';comment:相对于工程目录的素材目录；复制内容属性时可引用其他节点的素材目录" json:"assetDir"`                            // 相对于工程目录的素材目录；复制内容属性时可引用其他节点的素材目录
-	HTMLFile  string    `gorm:"not null;default:'';comment:HTML 文件相对 asset_dir 的路径；空串表示未导入 HTML 内容" json:"htmlFile"`                     // HTML 文件相对 asset_dir 的路径；空串表示未导入 HTML 内容
+	HTMLPath  string    `gorm:"not null;default:'';comment:节点 HTML 页面相对于工程目录的路径；空串表示未导入内容；复制与撤回可共享内容版本" json:"htmlPath"` // 节点 HTML 页面相对于工程目录的路径；空串表示未导入内容；复制与撤回可共享内容版本
+	ID        uint      `gorm:"primaryKey;comment:剧情节点自增主键" json:"id"`                                                   // 剧情节点自增主键
+	CanvasID  uint      `gorm:"comment:所属工程 ID，关联 canvas.id，由业务代码校验" json:"canvasId"`                                    // 所属工程 ID，关联 canvas.id，由业务代码校验
+	Hash      string    `gorm:"uniqueIndex;size:16;not null;comment:节点的全局唯一标识，供端口跳转、哈希定位及导出路由使用" json:"hash"`            // 节点的全局唯一标识，供端口跳转、哈希定位及导出路由使用
+	Name      string    `gorm:"not null;default:'未命名';comment:节点显示名称，与素材目录名称独立" json:"name"`                             // 节点显示名称，与素材目录名称独立
+	X         float64   `gorm:"comment:节点横坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置" json:"x"`                                        // 节点横坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置
+	Y         float64   `gorm:"comment:节点纵坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置" json:"y"`                                        // 节点纵坐标；当前前端自动布局会重新计算，不用于保存自由拖动位置
+	IsFirst   bool      `gorm:"comment:是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同" json:"first"`                                   // 是否为本工程播放起点；业务逻辑保证工程内恰好一个，可与根节点不同
+	CreatedAt time.Time `gorm:"comment:节点创建时间，由 GORM 自动填写" json:"createdAt"`                                             // 节点创建时间，由 GORM 自动填写
+	Level     int       `gorm:"not null;default:1;comment:普通连接树中的层级，每个工程恰好一个层级为 1 的根节点且不可删除；结构变化时重新计算" json:"level"`     // 普通连接树中的层级，每个工程恰好一个层级为 1 的根节点且不可删除；结构变化时重新计算
 }
 
 // Port 出端口，对应 ports 表；入端口仅由前端派生，不单独保存。
@@ -57,7 +55,6 @@ type Port struct {
 	Hash       string    `gorm:"size:32;uniqueIndex;not null;comment:出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步" json:"hash"`             // 出端口全局唯一标识；前端派生入端口沿用该值，用于配对和颜色同步
 	Name       string    `gorm:"column:option_content;not null;default:'选项';comment:选项显示文案，数据库列名为 option_content" json:"name"` // 选项显示文案，数据库列名为 option_content
 	NodeID     uint      `gorm:"not null;index;comment:所属源节点 ID，关联 nodes.id" json:"nodeId"`                                    // 所属源节点 ID，关联 nodes.id
-	TargetKind string    `gorm:"size:8;not null;default:mp4;comment:跳转后播放目标节点的内容类型：mp4 为视频，html 为 HTML 页面" json:"targetKind"`  // 跳转后播放目标节点的内容类型：mp4 为视频，html 为 HTML 页面
 	Entry      bool      `gorm:"-" json:"entry"`                                                                               // 仅供 API 和前端区分方向，不入库；后端出端口为 false，前端派生入端口为 true
 	Magic      bool      `gorm:"not null;default:false;comment:是否为魔法出端口；true 不画连接线，也不参与普通树层级和子树归属" json:"magic"`               // 是否为魔法出端口；true 不画连接线，也不参与普通树层级和子树归属
 	CreatedAt  time.Time `gorm:"comment:端口创建时间，由 GORM 自动填写" json:"createdAt"`                                                  // 端口创建时间，由 GORM 自动填写

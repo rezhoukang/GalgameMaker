@@ -22,7 +22,6 @@ const isPaired = computed(() => !!pairInfo.value)
 
 const name = ref(primary.value.name)
 const showOption = ref(primary.value.showOption)
-const kind = ref(primary.value.targetKind === 'html' ? 'html' : 'mp4')
 
 watch(
   () => primary.value?.name,
@@ -69,7 +68,6 @@ async function save() {
   const p = primary.value
   const ok = await store.saveNode(p.id, {
     name: name.value.trim() || p.name,
-    targetKind: kind.value,
     showOption: showOption.value
   })
   if (ok) emit('close')
@@ -86,7 +84,7 @@ async function del() {
       <h3><AppIcon name="file" :size="17" /> 端口 <span class="hash">#{{ node.hash }}</span></h3>
 
       <div v-if="isPaired" class="hint-line">
-        这里编辑同一条连接的选项、目标和播放方式。
+        这里编辑同一条连接的选项和跳转目标。
       </div>
 
       <div class="field">
@@ -94,7 +92,7 @@ async function del() {
         <input
           ref="nameRef"
           v-model="name"
-          placeholder="视频结束后显示的选项文案"
+          placeholder="内容结束后显示的选项文案"
           @keyup.enter="save"
           @keyup.esc="emit('close')"
         />
@@ -109,22 +107,8 @@ async function del() {
       </div>
 
       <div class="field">
-        <label><input v-model="showOption" type="checkbox" /> 视频结束后显示此选项</label>
+        <label><input v-model="showOption" type="checkbox" /> 内容结束后显示此选项</label>
         <p class="hint-line">取消勾选表示自动继续；该节点必须恰好有一个出口。</p>
-      </div>
-
-      <div class="field">
-        <label>跳转目标类型（一对端口共享，导出时跳向目标节点的资源）</label>
-        <div class="kind-row">
-          <label class="kind-opt">
-            <input v-model="kind" type="radio" value="mp4" />
-            🎬 视频（MP4）
-          </label>
-          <label class="kind-opt">
-            <input v-model="kind" type="radio" value="html" />
-            📄 页面（HTML）
-          </label>
-        </div>
       </div>
 
       <div class="field">
@@ -197,30 +181,6 @@ async function del() {
 }
 .hint-line strong {
   color: var(--accent);
-}
-.kind-row {
-  display: flex;
-  gap: 10px;
-}
-.kind-opt {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.kind-opt:hover {
-  border-color: var(--accent);
-}
-.kind-opt input {
-  accent-color: var(--accent);
 }
 .field textarea {
   width: 100%;

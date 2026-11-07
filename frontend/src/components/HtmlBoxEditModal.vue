@@ -112,21 +112,16 @@ async function del() {
       </div>
 
       <div class="field">
-        <label>视频（播放结束后进入选项或自动继续）</label>
+        <label>节点内容</label>
         <div class="video-row">
           <input ref="videoInput" type="file" accept=".mp4" style="display:none" @change="onVideoPick" />
-          <button class="btn" @click="videoInput?.click()"><AppIcon name="upload" :size="14" /> 插入 MP4</button>
-          <span class="video-name">{{ scene?.video ? '已导入 MP4' : '未插入视频' }}</span>
-        </div>
-      </div>
-
-      <div class="field">
-        <label>页面（可选，放到节点文件夹；端口跳转类型选「页面」时使用）</label>
-        <div class="video-row">
           <input ref="htmlInput" type="file" accept=".html,.htm" style="display:none" @change="onHtmlPick" />
-          <button class="btn" @click="htmlInput?.click()"><AppIcon name="upload" :size="14" /> 导入 HTML</button>
-          <span class="video-name">{{ scene?.htmlFile ? '已导入 HTML' : '未导入 HTML' }}</span>
+          <button class="btn" :disabled="store.busy" @click="videoInput?.click()"><AppIcon name="upload" :size="14" /> 导入 MP4</button>
+          <button class="btn" :disabled="store.busy" @click="htmlInput?.click()"><AppIcon name="upload" :size="14" /> 导入 HTML</button>
+          <span class="video-name">{{ scene?.htmlPath ? '已导入内容' : '未导入内容' }}</span>
         </div>
+        <p class="content-tip">重新导入会替换当前内容，可撤回。视频结束后显示选项；纯页面点击“继续”。</p>
+        <p class="content-tip">HTML 请使用资源已内嵌的单文件，或引用在线资源。</p>
       </div>
 
       <div class="field">
@@ -148,6 +143,7 @@ async function del() {
 </template>
 
 <style scoped>
+.content-tip { font-size: 12px; color: var(--text-dim); line-height: 1.6; margin-top: 8px; }
 .file-row {
   display: flex;
   align-items: center;

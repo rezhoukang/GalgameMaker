@@ -149,7 +149,7 @@ func (h *Handlers) setFirstScene(c *gin.Context) {
 	ok(c, scene)
 }
 
-// uploadSceneVideo 上传 HTML 框关联的 mp4 视频。
+// uploadSceneVideo 上传视频并生成节点 HTML 页面。
 func (h *Handlers) uploadSceneVideo(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -174,7 +174,7 @@ func (h *Handlers) uploadSceneVideo(c *gin.Context) {
 	ok(c, scene)
 }
 
-// uploadSceneHtml 导入/覆盖节点的 HTML 内容（文件名不变，仅内容）。
+// uploadSceneHtml 导入单文件 HTML，创建新的内容版本。
 func (h *Handlers) uploadSceneHtml(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

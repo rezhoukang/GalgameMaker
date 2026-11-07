@@ -14,14 +14,13 @@ import (
 
 type NodeService struct{ db *gorm.DB }
 
-func NewNodeService(db *gorm.DB) *NodeService        { return &NodeService{db: db} }
-func sceneStem(name string) string                   { return strings.TrimSuffix(name, filepath.Ext(name)) }
-func assetDir(c models.Canvas, s models.Node) string { return filepath.Join(c.Path, s.AssetDir) }
+func NewNodeService(db *gorm.DB) *NodeService { return &NodeService{db: db} }
+func sceneStem(name string) string            { return strings.TrimSuffix(name, filepath.Ext(name)) }
 func htmlPath(c models.Canvas, s models.Node) string {
-	if s.HTMLFile == "" {
+	if s.HTMLPath == "" {
 		return ""
 	}
-	return filepath.Join(assetDir(c, s), s.HTMLFile)
+	return filepath.Join(c.Path, filepath.FromSlash(s.HTMLPath))
 }
 func graph(tx *gorm.DB, canvasID uint) ([]models.Node, []models.Port, error) {
 	var canvas models.Canvas
@@ -145,7 +144,7 @@ func (s *NodeService) DeleteScene(id uint) error {
 		return normalize(tx, sc.CanvasID)
 	})
 }
-func (s *NodeService) UpdateNode(id uint, name string, targetKind *string, showOption *bool) (*models.Port, error) {
+func (s *NodeService) UpdateNode(id uint, name string, showOption *bool) (*models.Port, error) {
 	var p models.Port
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if err := activePorts(tx).First(&p, id).Error; err != nil {
@@ -157,14 +156,8 @@ func (s *NodeService) UpdateNode(id uint, name string, targetKind *string, showO
 				return errors.New("选项内容不能为空")
 			}
 		}
-		if targetKind != nil {
-			p.TargetKind = *targetKind
-		}
 		if showOption != nil {
 			p.ShowOption = *showOption
-		}
-		if p.TargetKind != "mp4" && p.TargetKind != "html" {
-			return errors.New("内容类型只能是 mp4 或 html")
 		}
 		return tx.Save(&p).Error
 	})
@@ -258,7 +251,7 @@ func (s *NodeService) CreateInitialScene(canvasID uint) (*models.Node, error) {
 			return nil
 		}
 		hash := NewHash()
-		sc = &models.Node{CanvasID: canvasID, Hash: hash, AssetDir: hash, Name: "初始节点", Level: 1, IsFirst: true}
+		sc = &models.Node{CanvasID: canvasID, Hash: hash, Name: "初始节点", Level: 1, IsFirst: true}
 		return tx.Create(sc).Error
 	})
 	return sc, err
@@ -268,7 +261,7 @@ func nextPort(tx *gorm.DB, sc models.Node, target string, magic bool) models.Por
 	tx.Model(&models.Port{}).Where("node_id = ?", sc.ID).Count(&count)
 	var max int
 	tx.Model(&models.Port{}).Where("node_id = ?", sc.ID).Select("COALESCE(MAX(sort_order), 0)").Scan(&max)
-	return models.Port{Hash: NewHash(), Name: fmt.Sprintf("选项 %d", count+1), NodeID: sc.ID, ExportHash: target, Magic: magic, ShowOption: true, TargetKind: "mp4", SortOrder: max + 1}
+	return models.Port{Hash: NewHash(), Name: fmt.Sprintf("选项 %d", count+1), NodeID: sc.ID, ExportHash: target, Magic: magic, ShowOption: true, SortOrder: max + 1}
 }
 func (s *NodeService) CreateNextNode(sceneID uint) (*models.Node, *models.Port, *models.Port, error) {
 	var sc models.Node
@@ -279,7 +272,7 @@ func (s *NodeService) CreateNextNode(sceneID uint) (*models.Node, *models.Port, 
 			return err
 		}
 		hash := NewHash()
-		sc = models.Node{CanvasID: parent.CanvasID, Hash: hash, AssetDir: hash, Name: "新节点", Level: parent.Level + 1}
+		sc = models.Node{CanvasID: parent.CanvasID, Hash: hash, Name: "新节点", Level: parent.Level + 1}
 		if err := tx.Create(&sc).Error; err != nil {
 			return err
 		}
@@ -329,12 +322,17 @@ func (s *NodeService) saveContentTx(id uint, r io.Reader, ext string) (*models.N
 	if err := s.db.First(&canvas, sc.CanvasID).Error; err != nil {
 		return nil, err
 	}
-	name := filepath.ToSlash(filepath.Join(".versions", NewHash()+ext))
-	path := filepath.Join(assetDir(canvas, sc), name)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	// Every upload owns a new directory; published versions are never overwritten.
+	dir := filepath.Join(".content", NewHash())
+	fullDir := filepath.Join(canvas.Path, dir)
+	if err := os.MkdirAll(fullDir, 0755); err != nil {
 		return nil, err
 	}
-	f, err := os.Create(path)
+	name := "index.html"
+	if ext == ".mp4" {
+		name = "video.mp4"
+	}
+	f, err := os.Create(filepath.Join(fullDir, name))
 	if err != nil {
 		return nil, err
 	}
@@ -350,10 +348,12 @@ func (s *NodeService) saveContentTx(id uint, r io.Reader, ext string) (*models.N
 		return nil, errors.New("素材文件不能为空")
 	}
 	if ext == ".mp4" {
-		sc.Video = name
-	} else {
-		sc.HTMLFile = name
+		if err := os.WriteFile(filepath.Join(fullDir, "index.html"), []byte(videoPage), 0644); err != nil {
+			return nil, err
+		}
 	}
+	sc.HTMLPath = filepath.ToSlash(filepath.Join(dir, "index.html"))
+
 	if err := s.db.Save(&sc).Error; err != nil {
 		return nil, err
 	}
@@ -385,7 +385,7 @@ func (s *NodeService) CopyProperties(id, sourceID uint, snapshot CanvasView) err
 		}
 		for _, src := range snapshot.Scenes {
 			if src.ID == sourceID {
-				dst.AssetDir, dst.Video, dst.HTMLFile = src.AssetDir, src.Video, src.HTMLFile
+				dst.HTMLPath = src.HTMLPath
 				return tx.Save(&dst).Error
 			}
 		}

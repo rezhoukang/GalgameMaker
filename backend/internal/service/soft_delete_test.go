@@ -27,7 +27,7 @@ func TestDeletedCanvasRetainsDataAndRejectsAccess(t *testing.T) {
 	if err := f.db.Unscoped().First(&stored, f.canvas.ID).Error; err != nil || !stored.DeleteAt.Valid {
 		t.Fatal("project was not soft deleted", err)
 	}
-	if _, err := os.Stat(filepath.Join(assetDir(stored, *media), media.Video)); err != nil {
+	if _, err := os.Stat(filepath.Join(filepath.Dir(htmlPath(stored, *media)), "video.mp4")); err != nil {
 		t.Fatal("media lost", err)
 	}
 	tree, err := f.tree.GetTree()
@@ -44,7 +44,7 @@ func TestDeletedCanvasRetainsDataAndRejectsAccess(t *testing.T) {
 		"initial":      func() error { _, e := f.nodes.CreateInitialScene(f.canvas.ID); return e },
 		"scene update": func() error { _, e := f.nodes.UpdateScene(child.ID, "changed", 0, 0); return e },
 		"scene delete": func() error { return f.nodes.DeleteScene(child.ID) },
-		"port update":  func() error { _, e := f.nodes.UpdateNode(port.ID, "changed", nil, nil); return e },
+		"port update":  func() error { _, e := f.nodes.UpdateNode(port.ID, "changed", nil); return e },
 		"port delete":  func() error { return f.nodes.DeleteNode(port.ID) },
 		"magic delete": func() error { return f.nodes.BreakConnection(magic.ID) },
 		"redirect":     func() error { return f.nodes.RedirectNode(magic.ID, child.Hash, "next") },
@@ -126,7 +126,7 @@ func TestFolderSoftDeleteCascadeAndRetainedPaths(t *testing.T) {
 	if moved.Path == canvas.Path {
 		t.Fatal("deleted child path not updated")
 	}
-	if _, err := os.Stat(filepath.Join(assetDir(moved, *media), media.Video)); err != nil {
+	if _, err := os.Stat(filepath.Join(filepath.Dir(htmlPath(moved, *media)), "video.mp4")); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.tree.DeleteItem("folder", parentID); err != nil {

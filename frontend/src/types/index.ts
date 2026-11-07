@@ -29,16 +29,14 @@ export interface Canvas {
 
 // 剧情节点，对应数据库 nodes 表，可关联视频或 HTML 内容。
 export interface Node {
+  htmlPath: string // 节点 HTML 相对于工程目录的路径；空串表示未导入内容
   level: number // 普通树层级，根节点为 1，不计魔法连接
-  assetDir: string // 相对工程目录的素材目录，可通过复制属性共享引用
-  htmlFile: string // HTML 文件相对素材目录的路径；空串表示未导入
   id: number // 剧情节点 ID，对应 nodes.id
   canvasId: number // 所属工程 ID，对应 canvas.id
   hash: string // 节点全局唯一标识，用于连接目标、定位和导出路由
   name: string // 节点显示名称，与素材文件名独立
   x: number // 节点横坐标，前端自动布局重新计算
   y: number // 节点纵坐标，前端自动布局重新计算
-  video: string // 视频相对素材目录的路径；空串表示未指定视频文件
   first: boolean // 是否为所属工程的播放起点，不是全局唯一
 }
 
@@ -52,7 +50,6 @@ export interface PortItem {
   hash: string // 出端口唯一标识；派生入端口沿用，用于配对和颜色同步
   name: string // 选项显示文案，对应数据库 option_content
   nodeId: number // 当前端点所在的节点 ID；出端口对应源节点，派生入端口对应目标节点
-  targetKind: string // 目标内容类型：mp4 播放视频，html 打开 HTML 页面
   entry: boolean // true 为前端派生入端口，false 为后端保存的出端口
   magic: boolean // 是否为魔法连接；不画线，不参与普通树层级和子树归属
 }
