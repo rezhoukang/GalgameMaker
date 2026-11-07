@@ -146,34 +146,9 @@ interface Line {
   d: string
   color: string
 }
-// 可见场景：从根 BFS，折叠节点的子树不渲染（边 = 出端口 → 配对入端口所在场景）
-const visibleScenes = computed<Node[]>(() => {
-  const parentOf = new Map<number, number>()
-  const kidsOf = new Map<number, number[]>()
-  for (const n of store.nodes) {
-    if (n.entry || n.magic) continue
-    const pair = store.nodes.find((x) => x.id !== n.id && x.hash === n.hash)
-    if (!pair || pair.nodeId === n.nodeId) continue
-    if (!parentOf.has(pair.nodeId)) parentOf.set(pair.nodeId, n.nodeId)
-    const list = kidsOf.get(n.nodeId)
-    if (list) list.push(pair.nodeId)
-    else kidsOf.set(n.nodeId, [pair.nodeId])
-  }
-  const visible: Node[] = []
-  const seen = new Set<number>()
-  const queue = store.scenes.filter((sc) => !parentOf.has(sc.id)).map((sc) => sc.id)
-  while (queue.length > 0) {
-    const id = queue.shift()!
-    if (seen.has(id)) continue
-    seen.add(id)
-    const sc = store.sceneById(id)
-    if (sc) visible.push(sc)
-    if (store.isCollapsed(id)) continue
-    for (const k of kidsOf.get(id) || []) queue.push(k)
-  }
-  return visible
-})
-const visibleIds = computed(() => new Set(visibleScenes.value.map((s) => s.id)))
+// 收起保留下一层；节点与连线共用同一份可见性结果。
+const visibleIds = computed(() => store.treeVisibility.visibleIds)
+const visibleScenes = computed<Node[]>(() => store.scenes.filter(s => visibleIds.value.has(s.id)))
 
 const lines = computed<Line[]>(() => {
   const out: Line[] = []

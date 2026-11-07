@@ -1,0 +1,50 @@
+import type { Node, PortItem } from './types'
+
+// 收起保留当前节点及直接子节点，仅隐藏孙节点及更深后代。
+export function treeVisibility(
+  scenes: Pick<Node, 'id' | 'hash'>[],
+  ports: Pick<PortItem, 'nodeId' | 'exportHash' | 'entry' | 'magic'>[],
+  collapsedIds: readonly number[]
+) {
+  const byHash = new Map(scenes.map(s => [s.hash, s.id]))
+  const children = new Map(scenes.map(s => [s.id, new Set<number>()]))
+  const hasParent = new Set<number>()
+  for (const port of ports) {
+    if (port.entry || port.magic) continue
+    const target = byHash.get(port.exportHash)
+    if (target == null || target === port.nodeId || !children.has(port.nodeId)) continue
+    children.get(port.nodeId)!.add(target)
+    hasParent.add(target)
+  }
+
+  const sizes = new Map<number, number>()
+  const visiting = new Set<number>()
+  function subtreeSize(id: number): number {
+    if (visiting.has(id)) return 0
+    if (sizes.has(id)) return sizes.get(id)!
+    visiting.add(id)
+    let size = 1
+    for (const child of children.get(id) || []) size += subtreeSize(child)
+    visiting.delete(id)
+    sizes.set(id, size)
+    return size
+  }
+  const foldCounts = new Map<number, number>()
+  for (const scene of scenes) {
+    let count = 0
+    for (const child of children.get(scene.id) || []) count += Math.max(0, subtreeSize(child) - 1)
+    foldCounts.set(scene.id, count)
+  }
+
+  const collapsed = new Set(collapsedIds)
+  const visibleIds = new Set<number>()
+  const queue = scenes.filter(s => !hasParent.has(s.id)).map(s => ({ id: s.id, stop: false }))
+  for (let i = 0; i < queue.length; i++) {
+    const { id, stop } = queue[i]
+    if (visibleIds.has(id)) continue
+    visibleIds.add(id)
+    if (stop) continue
+    for (const child of children.get(id) || []) queue.push({ id: child, stop: collapsed.has(id) })
+  }
+  return { visibleIds, foldCounts }
+}

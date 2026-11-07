@@ -31,8 +31,8 @@ const isFolded = computed(() => store.isCollapsed(props.scene.id))
 const outCol = computed(() =>
   store.nodes.filter((n) => n.nodeId === props.scene.id && !store.nodeIsEntry(n.id))
 )
-// 魔法连接不构成子树；只有存在普通子节点时才显示折叠按钮。
-const hasChildren = computed(() => outCol.value.some(p => !p.magic && store.sceneByHash(p.exportHash)))
+// 数量表示收起后隐藏的更深层节点；直接子节点始终保留。
+const foldCount = computed(() => store.treeVisibility.foldCounts.get(props.scene.id) ?? 0)
 const addBtnTop = computed(() => {
   const n = outCol.value.length
   if (n === 0) return NODE_H / 2 // 无出端口：高度居中
@@ -108,7 +108,7 @@ async function commitName() {
 <template>
   <div
     class="mm-node"
-    :class="{ selected, flash: store.flashSceneId === scene.id }"
+    :class="{ selected, flash: store.flashSceneId === scene.id, 'has-children': foldCount > 0 }"
     :style="{
       left: scene.x + 'px',
       top: scene.y + 'px',
@@ -145,20 +145,19 @@ async function commitName() {
       </button>
     </div>
 
-    <!-- 仅有普通子节点时显示折叠/展开按钮 -->
+    <!-- 仅有更深层普通后代可隐藏时显示折叠/展开按钮 -->
     <button
-      v-if="hasChildren"
+      v-if="foldCount > 0"
       class="fold-btn"
       :class="{ folded: isFolded }"
-      :title="isFolded ? '展开子节点' : '收起子节点（含后代）'"
-      :aria-label="isFolded ? '展开子节点' : '收起子节点'"
+      :title="isFolded ? `展开更深层的 ${foldCount} 个节点` : '收起更深层节点，保留下一层'"
+      :aria-label="isFolded ? `展开更深层的 ${foldCount} 个节点` : '收起更深层节点'"
       :aria-expanded="!isFolded"
       @mousedown.stop.prevent
       @click.stop="onToggleFold"
     >
-      <svg class="fold-chevron" viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
-        <path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <span class="fold-symbol" aria-hidden="true">{{ isFolded ? '+' : '−' }}</span>
+      <span v-if="isFolded" class="fold-count" aria-hidden="true">{{ foldCount }}</span>
     </button>
 
     <!-- 右侧端口容器：加号球 = 当作下一个出端口（与出端口同逻辑），点击新增出端口+下一跳 -->
@@ -266,15 +265,18 @@ async function commitName() {
   border-color: var(--accent);
   color: var(--accent);
 }
-/* 折叠/展开按钮：节点框右侧外部、垂直居中（与右侧端口容器水平错开） */
+/* 折叠按钮贴节点右边缘；新增入口仍位于更外侧的端口列。 */
+.mm-node.has-children .mm-title { padding-right: 26px; }
 .fold-btn {
   position: absolute;
-  left: calc(100% + 13px);
+  left: 100%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 22px;
+  min-width: 22px;
   height: 22px;
-  border-radius: 50%;
+  padding: 0 5px;
+  gap: 2px;
+  border-radius: 11px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text-dim);
@@ -290,13 +292,15 @@ async function commitName() {
   border-color: var(--accent);
   color: var(--accent);
 }
-.fold-chevron {
-  flex: none;
-  transform: rotate(90deg);
-  transition: transform 0.15s;
+.fold-symbol {
+  font-size: 16px;
+  line-height: 1;
 }
-.fold-btn.folded .fold-chevron {
-  transform: rotate(0deg);
+.fold-count {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 /* 右侧端口容器已并入 BallNode（加号球与出端口同逻辑渲染，见 BallNode.add-dot） */
 </style>

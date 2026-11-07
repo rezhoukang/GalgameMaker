@@ -15,6 +15,7 @@ import {
   ZOOM_MIN
 } from '@/canvasLayout'
 import { computeMindLayout } from '@/mindLayout'
+import { treeVisibility } from '@/treeVisibility'
 
 export interface ViewState {
   x: number
@@ -77,6 +78,7 @@ export const useCanvasStore = defineStore('canvas', {
   }),
 
   getters: {
+    treeVisibility: (s) => treeVisibility(s.scenes, s.nodes, s.collapsedSceneIds),
     canUndo: (s) => !s.busy && s.past.length > 0,
     canRedo: (s) => !s.busy && s.future.length > 0,
     nodeById: (s) => (id: number) => s.nodes.find((n) => n.id === id),
@@ -378,7 +380,7 @@ export const useCanvasStore = defineStore('canvas', {
       this.saveCache()
     },
 
-    /** 折叠/展开某节点的子树：只隐藏/显示，不重排坐标（避免收起时节点位移） */
+    /** 收起时保留当前节点及下一层，只隐藏更深后代；不重排坐标 */
     toggleCollapse(nodeId: number) {
       const i = this.collapsedSceneIds.indexOf(nodeId)
       if (i >= 0) this.collapsedSceneIds.splice(i, 1)
