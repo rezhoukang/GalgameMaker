@@ -106,9 +106,10 @@ function afterContent(){
   completed = true; nextBtn.style.display = 'none';
   var sc = DATA[String(cur)]; if(!sc){ return; }
   if(sc.options.length === 1 && !sc.options[0].isShow){ navigate(sc.options[0].target); return; }
-  if(sc.options.length){
-    optsBox.replaceChildren();
-    sc.options.forEach(function(o){
+  var visibleOptions = sc.options.filter(function(o){ return o.isShow; });
+  optsBox.replaceChildren(); optsBox.style.display = 'none';
+  if(visibleOptions.length){
+    visibleOptions.forEach(function(o){
       var btn = document.createElement('button'); btn.className = 'opt'; btn.textContent = o.label;
       btn.onclick = function(){ navigate(o.target); }; optsBox.appendChild(btn);
     });

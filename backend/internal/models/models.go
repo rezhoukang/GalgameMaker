@@ -60,7 +60,7 @@ type Port struct {
 	CreatedAt  time.Time `gorm:"comment:端口创建时间，由 GORM 自动填写" json:"createdAt"`                                                  // 端口创建时间，由 GORM 自动填写
 	UpdatedAt  time.Time `gorm:"comment:端口最后更新时间，由 GORM 在更新记录时维护" json:"updatedAt"`                                            // 端口最后更新时间，由 GORM 在更新记录时维护
 	ExportHash string    `gorm:"not null;index;comment:目标剧情节点的 hash，关联 nodes.hash；目标必须属于同一工程" json:"exportHash"`               // 目标剧情节点的 hash，关联 nodes.hash；目标必须属于同一工程
-	IsShow     bool      `gorm:"not null;default:true;comment:是否显示选项；false 仅在源节点恰好一个出口时用于自动跳转" json:"isShow"`                  // 是否显示选项；false 仅在源节点恰好一个出口时用于自动跳转
+	IsShow     bool      `gorm:"not null;default:true;comment:是否显示选项；false 隐藏选项；单出口时自动跳转，多出口时不展示此项" json:"isShow"`                  // 是否显示选项；false 隐藏选项；单出口时自动跳转，多出口时不展示此项
 	SortOrder  int       `gorm:"not null;default:0;comment:源节点内的出端口排序值，升序排列，相同值按端口 ID 排序" json:"sortOrder"`                    // 源节点内的出端口排序值，升序排列，相同值按端口 ID 排序
 }
 

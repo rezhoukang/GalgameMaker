@@ -91,22 +91,28 @@ async function del() {
       <div class="dialog-body">
         <div class="field">
           <label for="port-option-content">选项内容</label>
-          <input
-            id="port-option-content"
-            ref="nameRef"
-            v-model="name"
-            placeholder="内容结束后显示的选项文案"
-            @keyup.enter="save"
-            @keyup.esc="emit('close')"
-          />
-        </div>
-
-        <div class="display-option">
-          <label class="checkbox-row">
-            <input v-model="isShow" type="checkbox" />
-            <span>内容结束后显示此选项</span>
-          </label>
-          <p class="hint-line">关闭后自动继续，当前节点必须恰好有一个出口。</p>
+          <div class="option-input">
+            <input
+              id="port-option-content"
+              ref="nameRef"
+              v-model="name"
+              placeholder="内容结束后显示的选项文案"
+              @keyup.enter="save"
+              @keyup.esc="emit('close')"
+            />
+            <button
+              type="button"
+              class="visibility-toggle"
+              :class="{ hidden: !isShow }"
+              :aria-label="isShow ? '隐藏选项' : '显示选项'"
+              :title="isShow ? '隐藏选项' : '显示选项'"
+              :aria-pressed="isShow"
+              :disabled="store.busy"
+              @click="isShow = !isShow"
+            >
+              <AppIcon :name="isShow ? 'eye' : 'close'" :size="18" />
+            </button>
+          </div>
         </div>
 
         <div class="node-info">
@@ -182,21 +188,27 @@ async function del() {
 .dialog-body { padding: 16px 24px; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
 .node-edit .field { margin: 0; }
 .node-edit .field > label { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
-.node-edit input:not([type="checkbox"]) { min-width: 0; height: 38px; }
+.node-edit input { min-width: 0; height: 38px; }
 .hint-line { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
-.display-option { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-soft); }
-.node-edit .checkbox-row { display: flex; align-items: center; gap: 9px; margin: 0 0 5px; color: var(--text); font-size: 13px; cursor: pointer; }
-.node-edit .checkbox-row input {
-  appearance: auto;
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  margin: 0;
-  padding: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
+.option-input { position: relative; }
+.node-edit .option-input input { padding-right: 46px; }
+.visibility-toggle {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
 }
-.display-option .hint-line { padding-left: 25px; }
+.visibility-toggle:hover, .visibility-toggle:focus-visible { background: var(--accent-soft); color: var(--accent); }
+.visibility-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.visibility-toggle.hidden { color: var(--text-faint); }
 .node-info { display: grid; gap: 6px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
 .owner-row, .meta-row { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .info-label { flex: 0 0 58px; font-size: 12px; color: var(--text-dim); }

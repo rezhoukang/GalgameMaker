@@ -13,6 +13,13 @@ const store = useCanvasStore()
 const isAdd = computed(() => props.addSceneId != null)
 const color = computed(() => (props.node ? store.nodeColorById(props.node.id) : '#4f6bf6'))
 const isMagic = computed(() => !!props.node && props.node.magic)
+const visibilityLabel = computed(() => {
+  const node = props.node
+  if (!node || node.isShow) return ''
+  const source = node.entry ? store.pairInfo(node.id)?.peer : node
+  const outCount = store.nodes.filter(p => !p.entry && p.nodeId === source?.nodeId).length
+  return outCount === 1 ? ' · 自动' : ' · 隐藏'
+})
 const side = computed(() =>
   props.node && store.nodeIsEntry(props.node.id) ? 'in' : 'out'
 )
@@ -90,7 +97,7 @@ function onClick() {
       </span>
     </template>
     <span v-else class="dot" :class="{ magic: isMagic }" :style="dotStyle" />
-    <span v-if="node" class="name" :class="side">{{ node.name }}{{ !node.isShow ? ' · 自动' : '' }}</span>
+    <span v-if="node" class="name" :class="side">{{ node.name }}{{ visibilityLabel }}</span>
   </div>
 
   <!-- 右键菜单（加号球）：新增魔法端口 -->

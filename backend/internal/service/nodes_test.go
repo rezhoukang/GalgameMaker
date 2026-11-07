@@ -251,22 +251,21 @@ func TestExportValidationAndRoutes(t *testing.T) {
 	if !strings.Contains(string(page), "#/node/") || !strings.Contains(string(page), `"isShow":false`) {
 		t.Fatal("routes or hidden option absent")
 	}
-	_, q := f.child(t, f.root.ID)
-	if _, err := f.nodes.UpdateNode(q.ID, "", nil); err != nil {
+	b, q := f.child(t, f.root.ID)
+	if _, err := f.nodes.UpdateSceneHTML(b.ID, []byte("<h1>another branch</h1>")); err != nil {
 		t.Fatal(err)
 	}
-	issues, err = f.nodes.CheckCanvas(f.canvas.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	found := false
-	for _, i := range issues {
-		if strings.Contains(i.Problem, "自动继续") {
-			found = true
+	for _, show := range []bool{true, false} {
+		if _, err := f.nodes.UpdateNode(q.ID, "", &show); err != nil {
+			t.Fatal(err)
 		}
-	}
-	if !found {
-		t.Fatal("ambiguous automatic exit allowed")
+		issues, err = f.nodes.CheckCanvas(f.canvas.ID)
+		if err != nil || len(issues) != 0 {
+			t.Fatalf("multiple exits with hidden options rejected: %v %v", issues, err)
+		}
+		if _, err := exporter.Export(f.canvas.ID); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

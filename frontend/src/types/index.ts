@@ -44,7 +44,7 @@ export interface Node {
 // 后端仅返回出端口；前端按 exportHash 生成负 ID 的入端口。
 export interface PortItem {
   exportHash: string // 目标剧情节点 hash，对应 nodes.hash
-  isShow: boolean // 是否显示选项；隐藏时要求源节点恰好一个出口，播放结束自动跳转
+  isShow: boolean // 是否显示选项；单出口隐藏时自动跳转，多出口隐藏时不展示此项
   sortOrder: number // 源节点内的出端口排序值，后端按此值及 ID 升序返回
   id: number // 出端口 ID 为正数；派生入端口使用对应负 ID
   hash: string // 出端口唯一标识；派生入端口沿用，用于配对和颜色同步
